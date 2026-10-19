@@ -1,0 +1,43 @@
+name: wegojuan-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: wegojuan
+      POSTGRES_PASSWORD: wegojuan
+      POSTGRES_DB: wegojuan
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wegojuan -d wegojuan"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile.dev
+    init: true
+    environment:
+      APP_ENV: development
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://wegojuan:wegojuan@db:5432/wegojuan?sslmode=disable
+    ports:
+      - "8080:8080"
+    volumes:
+      - ..:/app
+      - /app/tmp
+      - gomod:/go/pkg/mod
+      - gocache:/root/.cache/go-build
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  gomod:
+  gocache:
