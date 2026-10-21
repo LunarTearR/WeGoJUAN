@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  },
+  "overrides": [
+    {
+      "files": ["src/components/**", "src/hooks/**", "src/lib/**", "src/utils/**", "src/types/**", "src/config/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["@/features/**", "@/app/**"],
+            "message": "โค้ด shared ห้าม import feature หรือ app (ทิศ import: shared → features → app)"
+          }]
+        }]
+      }
+    },
+    {
+      "files": ["src/features/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["@/features/**", "@/app/**"],
+            "message": "feature ห้าม import feature อื่นหรือ app — ภายใน feature ให้ใช้ relative import, ถ้าต้องใช้หลาย feature ร่วมกันให้ประกอบที่ src/app/routes"
+          }]
+        }]
+      }
+    }
+  ]
+}
