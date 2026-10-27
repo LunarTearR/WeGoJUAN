@@ -22,3 +22,15 @@ export function eachDay(from: ISODate, to: ISODate): ISODate[] {
   }
   return days
 }
+
+// ปี/เดือน (1-12) ของ ISODate
+export function monthOf(day: ISODate): { year: number; month: number } {
+  const [y, m] = day.split('-').map(Number)
+  return { year: y, month: m }
+}
+
+// "อา. 6 ธ.ค." — คำนวณบน UTC เพื่อไม่ให้ timezone ทำวันเลื่อน
+export function formatThaiDay(day: ISODate): string {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Intl.DateTimeFormat('th-TH', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)))
+}
