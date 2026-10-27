@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { ApiError } from '@/lib/api-client'
+import { eachDay } from '@/lib/date'
 import { useTrip } from '@/features/trip/api/get-trip'
 import { ConfirmedDates } from '@/features/trip/components/confirmed-dates'
+import { ConfirmedOfferBanner } from '@/features/trip/components/confirmed-offer-banner'
 import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
 import { PushPanel } from '@/features/trip/components/push-panel'
+import { ResyncBanner } from '@/features/trip/components/resync-banner'
 import { SuggestionList } from '@/features/trip/components/suggestion-list'
 import { TripMarksGrid } from '@/features/trip/components/trip-marks-grid'
 
@@ -16,6 +19,8 @@ export function TripDetailRoute() {
   const { data, isPending, error } = useTrip(tripId)
   // ?push=1 = มาจากลิงก์ให้ re-sync → เปิดแผง Push ทันที
   const [pushOpen, setPushOpen] = useState(searchParams.get('push') === '1')
+  // หลังตอบรับทำเครื่องหมายไม่ว่าง → ชวน re-sync ทริปอื่นที่เคย Push แล้วทับวันเหล่านั้น
+  const [resyncDays, setResyncDays] = useState<string[]>([])
 
   if (isPending) {
     return <p className="text-gray-500">กำลังโหลดทริป…</p>
@@ -37,6 +42,10 @@ export function TripDetailRoute() {
         </p>
       </div>
       <ConfirmedDates trip={trip} members={members} isOrganizer={me.is_organizer} />
+      {data.prompts.confirmed_offer && trip.confirmed_start && trip.confirmed_end && (
+        <ConfirmedOfferBanner trip={trip} onAccepted={() => setResyncDays(eachDay(trip.confirmed_start!, trip.confirmed_end!))} />
+      )}
+      <ResyncBanner days={resyncDays} onDismiss={() => setResyncDays([])} />
       <div className="space-y-2">
         <h2 className="font-medium">ช่วงวันที่แนะนำ</h2>
         <SuggestionList trip={trip} members={members} isOrganizer={me.is_organizer} />

@@ -41,6 +41,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Post("/:id/push", optionalAuth, h.push)
 	r.Put("/:id/confirmed", optionalAuth, h.confirm)
 	r.Delete("/:id/confirmed", optionalAuth, h.clearConfirmed)
+	r.Post("/:id/confirmed-offer", optionalAuth, h.answerConfirmedOffer)
 }
 
 type createTripRequest struct {
@@ -74,6 +75,16 @@ type detailResponse struct {
 	Trip    tripResponse     `json:"trip"`
 	Members []memberResponse `json:"members"`
 	Me      memberResponse   `json:"me"`
+	Prompts promptsResponse  `json:"prompts"`
+}
+
+type promptsResponse struct {
+	Repush         bool `json:"repush"`
+	ConfirmedOffer bool `json:"confirmed_offer"`
+}
+
+type confirmedOfferRequest struct {
+	Accept bool `json:"accept"`
 }
 
 type markResponse struct {
@@ -195,6 +206,7 @@ func (h *Handler) getByID(c fiber.Ctx) error {
 		Trip:    newTripResponse(d.Trip),
 		Members: members,
 		Me:      newMemberResponse(d.Trip, d.Me),
+		Prompts: promptsResponse{Repush: d.Prompts.Repush, ConfirmedOffer: d.Prompts.ConfirmedOffer},
 	})
 }
 
@@ -378,6 +390,24 @@ func (h *Handler) clearConfirmed(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (h *Handler) answerConfirmedOffer(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := requireJSON(c); err != nil {
+		return err
+	}
+	var req confirmedOfferRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	if err := h.svc.AnswerConfirmedOffer(c, tripID, viewerFrom(c), req.Accept); err != nil {
+		return tripError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // tripError แปลง error ของ service เป็น HTTP status ที่ใช้ร่วมกันทุก route ของทริป
 func tripError(err error) error {
 	switch {
@@ -385,7 +415,7 @@ func tripError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	case errors.Is(err, ErrGuestNotAllowed), errors.Is(err, ErrNotOrganizer):
 		return fiber.NewError(fiber.StatusForbidden, err.Error())
-	case errors.Is(err, ErrInvalidWindow):
+	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrDayOutOfRange), errors.Is(err, availability.ErrInvalidDay):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())

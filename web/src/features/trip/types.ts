@@ -26,6 +26,11 @@ export type TripDetail = {
   trip: Trip
   members: Member[]
   me: Member
+  // สิ่งที่ควรถามคนนี้ตอนเปิดทริป (Guest เป็น false เสมอ)
+  prompts: {
+    repush: boolean
+    confirmed_offer: boolean
+  }
 }
 
 export type NewTripInput = {

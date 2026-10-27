@@ -43,6 +43,7 @@ type Repository interface {
 	SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error
 	// SetConfirmed: nil = ยกเลิก Confirmed Dates
 	SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error
+	SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error
 	// ListPushedOverlapping คืนทริปที่ User คนนี้เคย Push และ Date Range มีวันใดวันหนึ่งใน days
 	ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error)
 }
@@ -102,7 +103,44 @@ func (s *Service) Get(ctx context.Context, tripID uuid.UUID, v Viewer) (Detail, 
 	if err != nil {
 		return Detail{}, err
 	}
-	return Detail{Trip: t, Members: members, Me: me}, nil
+	return Detail{Trip: t, Members: members, Me: me, Prompts: promptsFor(t, me)}, nil
+}
+
+func promptsFor(t Trip, me Member) Prompts {
+	if me.IsGuest() {
+		return Prompts{} // Guest ไม่มีปฏิทินส่วนตัว
+	}
+	offer := t.ConfirmedStart != nil && (me.OfferAnsweredStart == nil || !me.OfferAnsweredStart.Equal(*t.ConfirmedStart))
+	return Prompts{ConfirmedOffer: offer}
+}
+
+// AnswerConfirmedOffer: accept = เขียนไม่ว่างทุกวันใน Confirmed Dates ลงปฏิทินส่วนตัว (User ยินยอมเอง)
+// ตอบแล้วไม่ถามซ้ำจนกว่าผู้จัดจะเปลี่ยนวัน — ไม่เคยลบไม่ว่างเดิมออก
+func (s *Service) AnswerConfirmedOffer(ctx context.Context, tripID uuid.UUID, v Viewer, accept bool) error {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	if me.IsGuest() {
+		return ErrGuestNotAllowed
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+	if t.ConfirmedStart == nil {
+		return ErrNotConfirmed
+	}
+	if accept {
+		var busy []availability.Mark
+		for d := *t.ConfirmedStart; !d.After(*t.ConfirmedEnd()); d = d.AddDate(0, 0, 1) {
+			busy = append(busy, availability.Mark{Day: d, Status: availability.StatusBusy})
+		}
+		if err := s.cal.SetMarks(ctx, me.UserID.String(), busy, nil); err != nil {
+			return err
+		}
+	}
+	return s.repo.SetOfferAnswered(ctx, me.ID, *t.ConfirmedStart)
 }
 
 // Preview คืนข้อมูลทริปจากลิงก์เชิญ ให้คนที่ยังไม่ได้เข้าร่วมเห็นว่ากำลังจะเข้าทริปอะไร (ไม่มี Mark/สมาชิก)

@@ -86,12 +86,12 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID) (
 	return trips, rows.Err()
 }
 
-const memberColumns = `id, trip_id, user_id, display_name, joined_at, pushed_at`
+const memberColumns = `id, trip_id, user_id, display_name, joined_at, pushed_at, offer_answered_start`
 
 func scanMember(row pgx.Row) (Member, error) {
 	var m Member
 	var userID *uuid.UUID // NULL = Guest
-	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt, &m.PushedAt)
+	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt, &m.PushedAt, &m.OfferAnsweredStart)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Member{}, ErrNotFound
 	}
@@ -250,5 +250,10 @@ func (r *PostgresRepository) ListPushedOverlapping(ctx context.Context, userID u
 
 func (r *PostgresRepository) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {
 	_, err := r.db.Exec(ctx, `UPDATE trips SET confirmed_start = $2 WHERE id = $1`, tripID, start)
+	return err
+}
+
+func (r *PostgresRepository) SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error {
+	_, err := r.db.Exec(ctx, `UPDATE trip_members SET offer_answered_start = $2 WHERE id = $1`, memberID, start)
 	return err
 }

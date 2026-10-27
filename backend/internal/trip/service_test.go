@@ -39,6 +39,8 @@ type fakeRepo struct {
 
 	pushedAt map[uuid.UUID]time.Time
 
+	offerAnswered map[uuid.UUID]time.Time
+
 	confirmCalls   int
 	confirmedStart *time.Time
 
@@ -102,6 +104,14 @@ func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, err
 
 func (r *fakeRepo) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error) {
 	return r.marks, nil
+}
+
+func (r *fakeRepo) SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error {
+	if r.offerAnswered == nil {
+		r.offerAnswered = map[uuid.UUID]time.Time{}
+	}
+	r.offerAnswered[memberID] = start
+	return nil
 }
 
 func (r *fakeRepo) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {
