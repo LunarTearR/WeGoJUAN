@@ -31,9 +31,3 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID string, from
 	//       WHERE user_id = $1 AND day BETWEEN $2 AND $3 ORDER BY day
 	return nil, errNotImplemented
 }
-
-func (r *PostgresRepository) ListByUsers(ctx context.Context, userIDs []string, from, to time.Time) (map[string][]Mark, error) {
-	// TODO: SELECT user_id, day, status FROM availability
-	//       WHERE user_id = ANY($1) AND day BETWEEN $2 AND $3
-	return nil, errNotImplemented
-}

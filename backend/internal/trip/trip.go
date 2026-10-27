@@ -1,0 +1,56 @@
+// Package trip ดูแลทริป: สร้างทริป, สมาชิก, ลิงก์เชิญ, Mark ของแต่ละคนในทริป และหาช่วงวันที่ลงตัว
+package trip
+
+import (
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+var (
+	ErrNotFound    = errors.New("trip not found")
+	ErrInvalidTrip = errors.New("invalid trip") // ห่อด้วยเหตุผล: fmt.Errorf("%w: ...", ErrInvalidTrip)
+)
+
+type Trip struct {
+	ID           uuid.UUID
+	OrganizerID  uuid.UUID
+	Title        string
+	StartDate    time.Time // Date Range: ช่วงวันที่ผู้จัดเปิดให้เลือก (เที่ยงคืน UTC)
+	EndDate      time.Time
+	DurationDays int // ทริปยาวกี่วันติดกัน
+	InviteCode   string
+	CreatedAt    time.Time
+}
+
+type NewTrip struct {
+	Title        string
+	StartDate    time.Time
+	EndDate      time.Time
+	DurationDays int
+}
+
+type Member struct {
+	ID          uuid.UUID
+	TripID      uuid.UUID
+	UserID      uuid.UUID // uuid.Nil = Guest
+	DisplayName string
+	JoinedAt    time.Time
+}
+
+func (m Member) IsGuest() bool {
+	return m.UserID == uuid.Nil
+}
+
+// Viewer คือคนที่กำลังเรียก API — ใช้หาว่าเป็นสมาชิกคนไหนของทริป
+type Viewer struct {
+	UserID uuid.UUID
+}
+
+// Detail คือทริปตามที่สมาชิกเห็น
+type Detail struct {
+	Trip    Trip
+	Members []Member
+	Me      Member
+}

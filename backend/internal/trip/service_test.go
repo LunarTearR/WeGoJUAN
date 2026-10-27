@@ -1,0 +1,193 @@
+package trip
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type fakeRepo struct {
+	created []Trip
+	listed  []Trip
+
+	trip    Trip
+	findErr error
+
+	member    Member
+	memberErr error
+	members   []Member
+}
+
+func (r *fakeRepo) Create(ctx context.Context, t Trip) (Trip, error) {
+	r.created = append(r.created, t)
+	t.ID = uuid.New()
+	return t, nil
+}
+
+func (r *fakeRepo) FindByID(ctx context.Context, id uuid.UUID) (Trip, error) {
+	return r.trip, r.findErr
+}
+
+func (r *fakeRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]Trip, error) {
+	return r.listed, nil
+}
+
+func (r *fakeRepo) FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error) {
+	return r.member, r.memberErr
+}
+
+func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, error) {
+	return r.members, nil
+}
+
+var organizerID = uuid.MustParse("6f1c2c1e-0d5e-4a43-9a51-0c7d0f6f5b11")
+
+// defaultNow = 1 พ.ย. 2026 เที่ยงวันเวลาไทย
+var defaultNow = time.Date(2026, 11, 1, 5, 0, 0, 0, time.UTC)
+
+func mustDay(t *testing.T, s string) time.Time {
+	t.Helper()
+	d, err := time.Parse(time.DateOnly, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func newTestService(repo *fakeRepo, now time.Time) *Service {
+	s := NewService(repo)
+	s.now = func() time.Time { return now }
+	return s
+}
+
+func validNewTrip(t *testing.T) NewTrip {
+	return NewTrip{
+		Title:        "Chiang Mai",
+		StartDate:    mustDay(t, "2026-12-01"),
+		EndDate:      mustDay(t, "2026-12-20"),
+		DurationDays: 3,
+	}
+}
+
+func TestToday_UsesThailandDate(t *testing.T) {
+	tests := []struct {
+		now  time.Time
+		want string
+	}{
+		{time.Date(2026, 11, 1, 23, 30, 0, 0, time.UTC), "2026-11-02"}, // 06:30 วันถัดไปในไทย
+		{time.Date(2026, 11, 1, 16, 59, 0, 0, time.UTC), "2026-11-01"}, // 23:59 ในไทย
+	}
+	for _, tt := range tests {
+		got := Today(tt.now)
+		if !got.Equal(mustDay(t, tt.want)) || got.Location() != time.UTC {
+			t.Errorf("Today(%v) = %v, want %s UTC midnight", tt.now, got, tt.want)
+		}
+	}
+}
+
+func TestCreate_Validation(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*NewTrip)
+	}{
+		{"blank title", func(n *NewTrip) { n.Title = "   " }},
+		{"title over 100 runes", func(n *NewTrip) { n.Title = strings.Repeat("ก", 101) }},
+		{"start before today", func(n *NewTrip) { n.StartDate = mustDay(t, "2026-10-31") }},
+		{"end before start", func(n *NewTrip) { n.EndDate = mustDay(t, "2026-11-30") }},
+		{"date range over 365 days", func(n *NewTrip) { n.EndDate = mustDay(t, "2027-12-01") }},
+		{"duration zero", func(n *NewTrip) { n.DurationDays = 0 }},
+		{"duration longer than date range", func(n *NewTrip) {
+			n.EndDate = mustDay(t, "2026-12-03")
+			n.DurationDays = 4
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &fakeRepo{}
+			in := validNewTrip(t)
+			tt.mutate(&in)
+
+			_, err := newTestService(repo, defaultNow).Create(context.Background(), organizerID, in)
+
+			if !errors.Is(err, ErrInvalidTrip) {
+				t.Fatalf("err = %v, want ErrInvalidTrip", err)
+			}
+			if len(repo.created) != 0 {
+				t.Errorf("invalid trip must not reach the repo, got %d", len(repo.created))
+			}
+		})
+	}
+}
+
+func TestCreate_OK(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := newTestService(repo, defaultNow)
+	in := validNewTrip(t)
+	in.Title = "  Chiang Mai  "
+
+	if _, err := svc.Create(context.Background(), organizerID, in); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(context.Background(), organizerID, in); err != nil {
+		t.Fatal(err)
+	}
+
+	got := repo.created[0]
+	if got.Title != "Chiang Mai" {
+		t.Errorf("Title = %q, want trimmed", got.Title)
+	}
+	if got.OrganizerID != organizerID {
+		t.Errorf("OrganizerID = %v, want %v", got.OrganizerID, organizerID)
+	}
+	if len(got.InviteCode) != 22 {
+		t.Errorf("len(InviteCode) = %d, want 22", len(got.InviteCode))
+	}
+	if repo.created[1].InviteCode == got.InviteCode {
+		t.Error("two trips got the same invite code")
+	}
+}
+
+func TestCreate_StartTodayThai_OK(t *testing.T) {
+	in := validNewTrip(t)
+	in.StartDate = mustDay(t, "2026-11-02")
+
+	// 23:30 UTC วันที่ 1 = 06:30 วันที่ 2 ในไทย → วันที่ 2 คือ "วันนี้"
+	_, err := newTestService(&fakeRepo{}, time.Date(2026, 11, 1, 23, 30, 0, 0, time.UTC)).
+		Create(context.Background(), organizerID, in)
+
+	if err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+}
+
+func TestGet_NonMember_NotFound(t *testing.T) {
+	repo := &fakeRepo{memberErr: ErrNotFound}
+
+	_, err := newTestService(repo, defaultNow).Get(context.Background(), uuid.New(), Viewer{UserID: organizerID})
+
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestGet_Member_ReturnsTripMembersAndMe(t *testing.T) {
+	me := Member{ID: uuid.New(), UserID: organizerID, DisplayName: "ploy"}
+	repo := &fakeRepo{
+		trip:    Trip{ID: uuid.New(), Title: "Chiang Mai"},
+		member:  me,
+		members: []Member{me},
+	}
+
+	d, err := newTestService(repo, defaultNow).Get(context.Background(), repo.trip.ID, Viewer{UserID: organizerID})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Trip.Title != "Chiang Mai" || len(d.Members) != 1 || d.Me.ID != me.ID {
+		t.Errorf("detail = %+v", d)
+	}
+}

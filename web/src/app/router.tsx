@@ -3,10 +3,12 @@ import { AppShell } from '@/components/layout/app-shell'
 import { RequireUser } from '@/features/auth/components/require-user'
 import { UserMenu } from '@/features/auth/components/user-menu'
 import { CalendarRoute } from './routes/calendar'
-import { EventDetailRoute } from './routes/event-detail'
 import { LoginRoute } from './routes/login'
 import { NotFoundRoute } from './routes/not-found'
 import { RegisterRoute } from './routes/register'
+import { TripDetailRoute } from './routes/trip-detail'
+import { TripNewRoute } from './routes/trip-new'
+import { TripsRoute } from './routes/trips'
 
 export const router = createBrowserRouter([
   {
@@ -15,11 +17,15 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <RequireUser />,
-        children: [{ index: true, element: <CalendarRoute /> }],
+        children: [
+          { index: true, element: <CalendarRoute /> },
+          { path: 'trips', element: <TripsRoute /> },
+          { path: 'trips/new', element: <TripNewRoute /> },
+          { path: 'trips/:tripId', element: <TripDetailRoute /> },
+        ],
       },
       { path: 'login', element: <LoginRoute /> },
       { path: 'register', element: <RegisterRoute /> },
-      { path: 'events/:eventId', element: <EventDetailRoute /> },
       { path: '*', element: <NotFoundRoute /> },
     ],
   },

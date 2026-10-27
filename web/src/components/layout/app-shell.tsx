@@ -18,6 +18,9 @@ export function AppShell({ actions }: AppShellProps) {
           <NavLink to="/" end className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
             ปฏิทินของฉัน
           </NavLink>
+          <NavLink to="/trips" className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
+            ทริปของฉัน
+          </NavLink>
         </nav>
         <div className="flex items-center gap-4">
           {actions}
