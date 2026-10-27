@@ -20,6 +20,7 @@ var (
 	ErrNotConfirmed         = errors.New("trip has no confirmed dates")
 	ErrCannotRemoveSelf     = errors.New("the organizer cannot remove themselves")
 	ErrOrganizerCannotLeave = errors.New("the organizer cannot leave; delete the trip instead")
+	ErrConfirmedChanged     = errors.New("the confirmed dates changed; reload and answer again")
 )
 
 type Trip struct {

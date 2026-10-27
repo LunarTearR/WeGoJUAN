@@ -259,13 +259,27 @@ func (r *PostgresRepository) SetOfferAnswered(ctx context.Context, memberID uuid
 }
 
 func (r *PostgresRepository) UpdateDates(ctx context.Context, t Trip) (Trip, error) {
-	// ตั้ง confirmed_start ใน UPDATE เดียวกับวันใหม่ ไม่งั้น CHECK trips_confirmed_fits ล้มกลางทาง
-	return scanTrip(r.db.QueryRow(ctx, `
-		UPDATE trips
-		SET start_date = $2, end_date = $3, duration_days = $4, confirmed_start = $5, date_range_changed_at = $6
-		WHERE id = $1
-		RETURNING `+tripColumns,
-		t.ID, t.StartDate, t.EndDate, t.DurationDays, t.ConfirmedStart, t.DateRangeChangedAt))
+	var updated Trip
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		// ตั้ง confirmed_start ใน UPDATE เดียวกับวันใหม่ ไม่งั้น CHECK trips_confirmed_fits ล้มกลางทาง
+		var err error
+		updated, err = scanTrip(tx.QueryRow(ctx, `
+			UPDATE trips
+			SET start_date = $2, end_date = $3, duration_days = $4, confirmed_start = $5, date_range_changed_at = $6
+			WHERE id = $1
+			RETURNING `+tripColumns,
+			t.ID, t.StartDate, t.EndDate, t.DurationDays, t.ConfirmedStart, t.DateRangeChangedAt))
+		if err != nil {
+			return err
+		}
+		// Mark นอกช่วงใหม่ทิ้งเลย — ขยายช่วงกลับมาทีหลัง วันนั้นต้องเริ่มเป็น Unknown ไม่ใช่ Mark เก่าโผล่กลับมา
+		_, err = tx.Exec(ctx, `
+			DELETE FROM trip_marks k USING trip_members m
+			WHERE k.member_id = m.id AND m.trip_id = $1 AND (k.day < $2 OR k.day > $3)`,
+			t.ID, t.StartDate, t.EndDate)
+		return err
+	})
+	return updated, err
 }
 
 func (r *PostgresRepository) SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error {

@@ -124,7 +124,7 @@ func promptsFor(t Trip, me Member) Prompts {
 }
 
 // UpdateDates แก้ Date Range / Duration — ผู้จัดเท่านั้น
-// Confirmed Dates ที่ไม่พอดีกับช่วงใหม่ถูกยกเลิกในการแก้ครั้งเดียวกัน; ขยายช่วง (มีวันใหม่) = ชวนคนที่เคย Push ให้ Push อีกครั้ง
+// Confirmed Dates ที่ไม่พอดีกับช่วงใหม่ (หรือ Duration เปลี่ยน) ถูกยกเลิกในการแก้ครั้งเดียวกัน; ขยายช่วง (มีวันใหม่) = ชวนคนที่เคย Push ให้ Push อีกครั้ง
 func (s *Service) UpdateDates(ctx context.Context, tripID uuid.UUID, v Viewer, in DatesUpdate) (Trip, error) {
 	t, _, err := s.asOrganizer(ctx, tripID, v)
 	if err != nil {
@@ -140,8 +140,10 @@ func (s *Service) UpdateDates(ctx context.Context, tripID uuid.UUID, v Viewer, i
 	}
 
 	addsDays := in.StartDate.Before(t.StartDate) || in.EndDate.After(t.EndDate)
+	// Window ยาวเท่า Duration เสมอ — เปลี่ยน Duration แล้ว Window ที่ผู้จัดเลือกไว้ไม่มีอยู่จริงอีกต่อไป
+	durationChanged := in.DurationDays != t.DurationDays
 	t.StartDate, t.EndDate, t.DurationDays = in.StartDate, in.EndDate, in.DurationDays
-	if t.ConfirmedStart != nil && !t.windowFits(*t.ConfirmedStart) {
+	if t.ConfirmedStart != nil && (durationChanged || !t.windowFits(*t.ConfirmedStart)) {
 		t.ConfirmedStart = nil
 	}
 	if addsDays {
@@ -153,7 +155,7 @@ func (s *Service) UpdateDates(ctx context.Context, tripID uuid.UUID, v Viewer, i
 
 // AnswerConfirmedOffer: accept = เขียนไม่ว่างทุกวันใน Confirmed Dates ลงปฏิทินส่วนตัว (User ยินยอมเอง)
 // ตอบแล้วไม่ถามซ้ำจนกว่าผู้จัดจะเปลี่ยนวัน — ไม่เคยลบไม่ว่างเดิมออก
-func (s *Service) AnswerConfirmedOffer(ctx context.Context, tripID uuid.UUID, v Viewer, accept bool) error {
+func (s *Service) AnswerConfirmedOffer(ctx context.Context, tripID uuid.UUID, v Viewer, accept bool, shownStart time.Time) error {
 	me, err := s.findMember(ctx, tripID, v)
 	if err != nil {
 		return err
@@ -167,6 +169,10 @@ func (s *Service) AnswerConfirmedOffer(ctx context.Context, tripID uuid.UUID, v 
 	}
 	if t.ConfirmedStart == nil {
 		return ErrNotConfirmed
+	}
+	// ผู้จัดเปลี่ยนวันระหว่างที่หน้ายังเปิดอยู่ → ไม่เขียนวันที่ User ไม่เคยเห็น
+	if !t.ConfirmedStart.Equal(shownStart) {
+		return ErrConfirmedChanged
 	}
 	if accept {
 		var busy []availability.Mark

@@ -7,11 +7,8 @@ export type LoginInput = {
   password: string
 }
 
-export async function login(input: LoginInput): Promise<Me> {
-  const me = await apiFetch<Me>('/api/v1/users/login', { method: 'POST', body: JSON.stringify(input) })
-  // เคยเข้าทริปแบบ Guest ในเครื่องนี้ → ย้ายที่นั่งและ Mark มาเป็นของบัญชี (ล้มเหลวก็ login ต่อได้)
-  await apiFetch('/api/v1/trips/claim-guest', { method: 'POST' }).catch(() => undefined)
-  return me
+export function login(input: LoginInput) {
+  return apiFetch<Me>('/api/v1/users/login', { method: 'POST', body: JSON.stringify(input) })
 }
 
 export function useLogin() {

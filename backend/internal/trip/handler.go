@@ -90,7 +90,8 @@ type promptsResponse struct {
 }
 
 type confirmedOfferRequest struct {
-	Accept bool `json:"accept"`
+	Accept bool   `json:"accept"`
+	Start  string `json:"start"` // Confirmed Dates (วันเริ่ม) ที่ User เห็นตอนตอบ
 }
 
 type markResponse struct {
@@ -500,7 +501,11 @@ func (h *Handler) answerConfirmedOffer(c fiber.Ctx) error {
 	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	if err := h.svc.AnswerConfirmedOffer(c, tripID, viewerFrom(c), req.Accept); err != nil {
+	shownStart, err := availability.ParseDay(req.Start)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	if err := h.svc.AnswerConfirmedOffer(c, tripID, viewerFrom(c), req.Accept, shownStart); err != nil {
 		return tripError(err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -511,6 +516,8 @@ func tripError(err error) error {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	case errors.Is(err, ErrConfirmedChanged):
+		return fiber.NewError(fiber.StatusConflict, err.Error())
 	case errors.Is(err, ErrGuestNotAllowed), errors.Is(err, ErrNotOrganizer):
 		return fiber.NewError(fiber.StatusForbidden, err.Error())
 	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed), errors.Is(err, ErrInvalidTrip),

@@ -15,8 +15,15 @@ import { ResyncBanner } from '@/features/trip/components/resync-banner'
 import { SuggestionList } from '@/features/trip/components/suggestion-list'
 import { TripMarksGrid } from '@/features/trip/components/trip-marks-grid'
 
-// หน้านี้คือจุดที่ประกอบหลายส่วนของทริปเข้าด้วยกัน (เหมือน wiring ใน main.go)
+// key ตาม tripId: ไปทริปอื่นจากหน้านี้ (เช่นลิงก์ re-sync) ต้องได้ state ใหม่ทั้งหน้า
+// ไม่งั้นแผง Push / ฟอร์มแก้วัน / แบนเนอร์ของทริปเดิมตามไปด้วย
 export function TripDetailRoute() {
+  const { tripId = '' } = useParams()
+  return <TripDetail key={tripId} />
+}
+
+// หน้านี้คือจุดที่ประกอบหลายส่วนของทริปเข้าด้วยกัน (เหมือน wiring ใน main.go)
+function TripDetail() {
   const { tripId = '' } = useParams()
   const [searchParams] = useSearchParams()
   const { data, isPending, error } = useTrip(tripId)
@@ -59,7 +66,7 @@ export function TripDetailRoute() {
       {data.prompts.confirmed_offer && trip.confirmed_start && trip.confirmed_end && (
         <ConfirmedOfferBanner trip={trip} onAccepted={() => setResyncDays(eachDay(trip.confirmed_start!, trip.confirmed_end!))} />
       )}
-      <ResyncBanner days={resyncDays} onDismiss={() => setResyncDays([])} />
+      <ResyncBanner days={resyncDays} onDismiss={() => setResyncDays([])} excludeTripId={trip.id} />
       <div className="space-y-2">
         <h2 className="font-medium">ช่วงวันที่แนะนำ</h2>
         <SuggestionList trip={trip} members={members} isOrganizer={me.is_organizer} />
@@ -73,7 +80,7 @@ export function TripDetailRoute() {
         <h2 className="font-medium">วันว่างของสมาชิก</h2>
         {!me.is_guest &&
           (pushOpen ? (
-            <PushPanel tripId={trip.id} onDone={() => setPushOpen(false)} />
+            <PushPanel trip={trip} onDone={() => setPushOpen(false)} />
           ) : (
             <button type="button" onClick={() => setPushOpen(true)} className="rounded border border-gray-300 px-3 py-1 text-sm">
               อัปเดตจากปฏิทินของฉัน

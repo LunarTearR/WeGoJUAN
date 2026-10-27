@@ -164,3 +164,19 @@ func TestPatchTrip_200(t *testing.T) {
 		t.Errorf("body = %+v", got)
 	}
 }
+
+// Window ยาวเท่า Duration เสมอ — เปลี่ยน Duration = Window ที่ผู้จัดเลือกไว้ไม่มีอยู่แล้ว ต้องยกเลิก (และถามสมาชิกใหม่เมื่อเลือกใหม่)
+func TestUpdateDates_DurationChangeClearsConfirmed(t *testing.T) {
+	repo := organizerTrip(t)
+	start := mustDay(t, "2026-12-05")
+	repo.trip.ConfirmedStart = &start
+
+	_, err := newTestService(repo, defaultNow).UpdateDates(context.Background(), repo.trip.ID, Viewer{UserID: organizerID}, dates(t, "2026-12-01", "2026-12-20", 4))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.updated[0].ConfirmedStart != nil {
+		t.Errorf("confirmed = %v, want cleared when Duration changes", repo.updated[0].ConfirmedStart)
+	}
+}

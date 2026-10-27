@@ -3,8 +3,15 @@ import type { ISODate } from '@/types/date'
 import { useResyncTrips } from '../api/get-resync-trips'
 
 // ชวน re-sync: ทริปที่เคย Push เป็น snapshot จะไม่เห็นวันที่เพิ่งแก้ จนกว่าจะ Push อีกครั้ง
-export function ResyncBanner({ days, onDismiss }: { days: ISODate[]; onDismiss: () => void }) {
-  const { data: trips } = useResyncTrips(days)
+type ResyncBannerProps = {
+  days: ISODate[]
+  onDismiss: () => void
+  excludeTripId?: string // ไม่ชวน re-sync ทริปต้นทาง (เช่นทริปที่เพิ่งตอบรับวันยืนยัน — จะไปทริปนั้นเอง)
+}
+
+export function ResyncBanner({ days, onDismiss, excludeTripId }: ResyncBannerProps) {
+  const { data } = useResyncTrips(days)
+  const trips = data?.filter((t) => t.id !== excludeTripId)
 
   if (!trips || trips.length === 0) {
     return null
