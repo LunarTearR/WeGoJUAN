@@ -48,8 +48,12 @@ _Avoid_: availability (as a noun for the whole thing), schedule
 A statement about a single calendar day (a date with no time of day): either **Free** or **Busy**. Lives in one of two places — on a **User**'s **Personal Calendar**, or on a **Trip** for one **Member**. At most one **Mark** per day in each place.
 _Avoid_: slot, entry, availability record
 
+**Reason**:
+Optional private text on a **Busy** day of a **User**'s **Personal Calendar** saying why they are busy (e.g. "workday"). One per day, only on **Busy** days. Never leaves the **Personal Calendar** — other **Members** only ever see **Busy**. The **User** sees their own **Reasons** while choosing days to **Push**, but they are never copied into the **Trip**. Accepting the offer to mark a **Trip**'s **Confirmed Dates** **Busy** fills in that **Trip**'s title as the **Reason**, except on days that already have one. Plain text: it stays as written if the **Trip** later changes or is deleted.
+_Avoid_: note, label, description, busy reason
+
 **Push**:
-A **User** copying **Marks** from their **Personal Calendar** into a **Trip**, limited to the **Trip**'s **Date Range**. The **User** sees every day where the two differ and picks which of those days to overwrite; unpicked days keep the **Trip**'s current **Mark**. A snapshot: later changes to the **Personal Calendar** reach the **Trip** only through another **Push** (offered as a re-sync prompt).
+A **User** copying **Marks** from their **Personal Calendar** into a **Trip**, limited to the **Trip**'s **Date Range**. Only **Free** / **Busy** is copied, never the **Reason**. The **User** sees every day where the two differ and picks which of those days to overwrite; unpicked days keep the **Trip**'s current **Mark**. A snapshot: later changes to the **Personal Calendar** reach the **Trip** only through another **Push** (offered as a re-sync prompt).
 _Avoid_: share, sync, link (all imply a live connection)
 
 **Trip-only Mark**:
