@@ -232,3 +232,34 @@ func TestLogoutHandler_ClearsCookie(t *testing.T) {
 	}
 	t.Error("logout did not clear session cookie")
 }
+
+// กันเดารหัสผ่าน: นับเฉพาะครั้งที่ login ไม่ผ่าน ต่อ email (ไม่ใช่ต่อ IP — หลัง Vercel + Railway ทุก request มาจาก IP ของ proxy)
+func TestLogin_RateLimitedPerEmail(t *testing.T) {
+	app := newTestApp(t, &fakeRepo{findUser: existingUser(t)})
+	wrong := `{"email":"a@x.com","password":"Wrong#123"}`
+
+	for i := 1; i <= 10; i++ {
+		if res := request(t, app, http.MethodPost, "/users/login", wrong, nil); res.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("attempt %d status = %d, want 401", i, res.StatusCode)
+		}
+	}
+	if res := request(t, app, http.MethodPost, "/users/login", wrong, nil); res.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("11th failed attempt status = %d, want 429", res.StatusCode)
+	}
+	if res := request(t, app, http.MethodPost, "/users/login", `{"email":" A@X.com ","password":"Secret#123"}`, nil); res.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("same email (different case) status = %d, want 429 while locked", res.StatusCode)
+	}
+	if res := request(t, app, http.MethodPost, "/users/login", `{"email":"b@x.com","password":"Wrong#123"}`, nil); res.StatusCode != http.StatusUnauthorized {
+		t.Errorf("other email status = %d, want 401 (not limited)", res.StatusCode)
+	}
+}
+
+func TestLogin_SuccessfulLoginsAreNotCounted(t *testing.T) {
+	app := newTestApp(t, &fakeRepo{findUser: existingUser(t)})
+
+	for i := 1; i <= 12; i++ {
+		if res := request(t, app, http.MethodPost, "/users/login", `{"email":"a@x.com","password":"Secret#123"}`, nil); res.StatusCode != http.StatusOK {
+			t.Fatalf("login %d status = %d, want 200", i, res.StatusCode)
+		}
+	}
+}

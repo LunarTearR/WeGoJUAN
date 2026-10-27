@@ -13,7 +13,7 @@ export function AppShell({ actions }: AppShellProps) {
       <header className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-3">
         <nav className="flex items-center gap-4">
           <NavLink to="/" className="font-semibold">
-            myapp
+            WeGoJUAN
           </NavLink>
           <NavLink to="/" end className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
             ปฏิทินของฉัน
@@ -24,7 +24,8 @@ export function AppShell({ actions }: AppShellProps) {
         </nav>
         <div className="flex items-center gap-4">
           {actions}
-          <ApiStatus />
+          {/* ตัวช่วยตอน dev เท่านั้น — production ไม่ต้องโชว์สถานะ API */}
+          {import.meta.env.DEV && <ApiStatus />}
         </div>
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">

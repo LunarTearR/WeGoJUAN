@@ -31,7 +31,7 @@ type Pinger interface {
 
 func New(cfg Config, logger *slog.Logger, db Pinger, mounts ...Mount) *fiber.App {
 	app := fiber.New(fiber.Config{
-		AppName:      "myapp-api",
+		AppName:      "wegojuan-api",
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

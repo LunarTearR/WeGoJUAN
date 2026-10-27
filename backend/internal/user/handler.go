@@ -1,9 +1,12 @@
 package user
 
 import (
+	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/google/uuid"
 	"strings"
 
@@ -23,7 +26,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	requireAuth := h.auth.Require()
 
 	r.Post("/register", h.register)
-	r.Post("/login", h.login)
+	r.Post("/login", loginLimiter(), h.login)
 	r.Post("/logout", h.logout)
 
 	r.Get("/me", requireAuth, h.me)
@@ -32,6 +35,25 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 
 	// ต้องอยู่หลัง /me ไม่งั้น /:id จะจับ "me" ไปก่อน
 	r.Get("/:id", requireAuth, h.getByID)
+}
+
+// loginLimiter กันเดารหัสผ่าน: login ไม่ผ่านได้ 10 ครั้งต่อ email ใน 10 นาที (login สำเร็จไม่นับ)
+// นับต่อ email ไม่ใช่ต่อ IP — ตอน deploy ทุก request ผ่าน Vercel + Railway จึงเห็นแต่ IP ของ proxy
+// เก็บในหน่วยความจำของ process เดียว (พอสำหรับ API ตัวเดียว)
+func loginLimiter() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:                    10,
+		Expiration:             10 * time.Minute,
+		SkipSuccessfulRequests: true,
+		KeyGenerator: func(c fiber.Ctx) string {
+			var req LoginRequest
+			_ = json.Unmarshal(c.Body(), &req) // body เสียก็ได้ key ว่าง ให้ handler ตอบ 400 เอง
+			return "login:" + strings.ToLower(strings.TrimSpace(req.Email))
+		},
+		LimitReached: func(c fiber.Ctx) error {
+			return fiber.NewError(fiber.StatusTooManyRequests, "too many failed login attempts, try again in 10 minutes")
+		},
+	})
 }
 
 // userResponse คือ profile สาธารณะที่คนอื่นเห็น
