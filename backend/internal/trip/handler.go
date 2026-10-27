@@ -36,6 +36,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Get("/:id", optionalAuth, h.getByID)
 	r.Patch("/:id", optionalAuth, h.updateDates)
 	r.Delete("/:id", optionalAuth, h.deleteTrip)
+	r.Delete("/:id/members/me", optionalAuth, h.leave) // ต้องมาก่อน /:memberId ไม่งั้น "me" ถูกจับเป็น id
 	r.Delete("/:id/members/:memberId", optionalAuth, h.removeMember)
 	r.Post("/:id/invite-link", optionalAuth, h.replaceInviteLink)
 	r.Get("/:id/marks", optionalAuth, h.marks)
@@ -401,6 +402,17 @@ func (h *Handler) deleteTrip(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (h *Handler) leave(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := h.svc.Leave(c, tripID, viewerFrom(c)); err != nil {
+		return tripError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *Handler) removeMember(c fiber.Ctx) error {
 	tripID, err := parseTripID(c)
 	if err != nil {
@@ -488,7 +500,7 @@ func tripError(err error) error {
 	case errors.Is(err, ErrGuestNotAllowed), errors.Is(err, ErrNotOrganizer):
 		return fiber.NewError(fiber.StatusForbidden, err.Error())
 	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed), errors.Is(err, ErrInvalidTrip),
-		errors.Is(err, ErrCannotRemoveSelf):
+		errors.Is(err, ErrCannotRemoveSelf), errors.Is(err, ErrOrganizerCannotLeave):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrDayOutOfRange), errors.Is(err, availability.ErrInvalidDay):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())

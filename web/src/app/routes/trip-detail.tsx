@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError } from '@/lib/api-client'
 import { eachDay } from '@/lib/date'
 import { useTrip } from '@/features/trip/api/get-trip'
-import { useDeleteTrip } from '@/features/trip/api/manage-trip'
+import { useDeleteTrip, useLeaveTrip } from '@/features/trip/api/manage-trip'
 import { ConfirmedDates } from '@/features/trip/components/confirmed-dates'
 import { ConfirmedOfferBanner } from '@/features/trip/components/confirmed-offer-banner'
 import { EditDatesForm } from '@/features/trip/components/edit-dates-form'
@@ -27,6 +27,7 @@ export function TripDetailRoute() {
   const [editingDates, setEditingDates] = useState(false)
   const navigate = useNavigate()
   const deleteMutation = useDeleteTrip(tripId)
+  const leaveMutation = useLeaveTrip(tripId)
 
   if (isPending) {
     return <p className="text-gray-500">กำลังโหลดทริป…</p>
@@ -80,6 +81,23 @@ export function TripDetailRoute() {
           ))}
         <TripMarksGrid trip={trip} members={members} me={me} />
       </div>
+      {!me.is_organizer && (
+        <div className="border-t border-gray-200 pt-4">
+          <button
+            type="button"
+            disabled={leaveMutation.isPending}
+            onClick={() => {
+              if (window.confirm('ออกจากทริปนี้? วันว่างที่คุณระบุในทริปนี้จะหายไป')) {
+                leaveMutation.mutate(undefined, { onSuccess: () => navigate(me.is_guest ? '/' : '/trips') })
+              }
+            }}
+            className="text-sm text-red-700 underline"
+          >
+            ออกจากทริป
+          </button>
+          {leaveMutation.error && <p className="text-sm text-red-700">ออกไม่สำเร็จ: {leaveMutation.error.message}</p>}
+        </div>
+      )}
       {me.is_organizer && (
         <div className="border-t border-gray-200 pt-4">
           <button

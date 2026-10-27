@@ -29,3 +29,15 @@ export function useDeleteTrip(tripId: string) {
     },
   })
 }
+
+// ออกจากทริปเอง — ผู้จัดออกไม่ได้ (server ตอบ 400)
+export function useLeaveTrip(tripId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiFetch<void>(`${tripPath(tripId)}/members/me`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['trips', tripId] })
+      queryClient.invalidateQueries({ queryKey: ['trips'] })
+    },
+  })
+}

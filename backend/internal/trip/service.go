@@ -356,6 +356,22 @@ func (s *Service) RemoveMember(ctx context.Context, tripID uuid.UUID, v Viewer, 
 	return s.repo.DeleteMember(ctx, tripID, memberID)
 }
 
+// Leave ออกจากทริปเอง (User หรือ Guest) — Mark ในทริปหายไปด้วย ผู้จัดออกไม่ได้ ต้องลบทริปแทน
+func (s *Service) Leave(ctx context.Context, tripID uuid.UUID, v Viewer) error {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+	if !me.IsGuest() && me.UserID == t.OrganizerID {
+		return ErrOrganizerCannotLeave
+	}
+	return s.repo.DeleteMember(ctx, tripID, me.ID)
+}
+
 // ReplaceInviteLink สุ่มลิงก์เชิญใหม่ — ลิงก์เก่าใช้ไม่ได้ทันที
 func (s *Service) ReplaceInviteLink(ctx context.Context, tripID uuid.UUID, v Viewer) (string, error) {
 	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {

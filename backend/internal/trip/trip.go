@@ -9,16 +9,17 @@ import (
 )
 
 var (
-	ErrNotFound           = errors.New("trip not found")
-	ErrInvalidTrip        = errors.New("invalid trip") // ห่อด้วยเหตุผล: fmt.Errorf("%w: ...", ErrInvalidTrip)
-	ErrDisplayNameTaken   = errors.New("display name already taken in this trip")
-	ErrInvalidDisplayName = errors.New("display name must be 1-50 characters")
-	ErrDayOutOfRange      = errors.New("day is outside the trip's date range")
-	ErrGuestNotAllowed    = errors.New("only signed-up users can do this")
-	ErrNotOrganizer       = errors.New("only the organizer can do this")
-	ErrInvalidWindow      = errors.New("not a valid window for this trip")
-	ErrNotConfirmed       = errors.New("trip has no confirmed dates")
-	ErrCannotRemoveSelf   = errors.New("the organizer cannot remove themselves")
+	ErrNotFound             = errors.New("trip not found")
+	ErrInvalidTrip          = errors.New("invalid trip") // ห่อด้วยเหตุผล: fmt.Errorf("%w: ...", ErrInvalidTrip)
+	ErrDisplayNameTaken     = errors.New("display name already taken in this trip")
+	ErrInvalidDisplayName   = errors.New("display name must be 1-50 characters")
+	ErrDayOutOfRange        = errors.New("day is outside the trip's date range")
+	ErrGuestNotAllowed      = errors.New("only signed-up users can do this")
+	ErrNotOrganizer         = errors.New("only the organizer can do this")
+	ErrInvalidWindow        = errors.New("not a valid window for this trip")
+	ErrNotConfirmed         = errors.New("trip has no confirmed dates")
+	ErrCannotRemoveSelf     = errors.New("the organizer cannot remove themselves")
+	ErrOrganizerCannotLeave = errors.New("the organizer cannot leave; delete the trip instead")
 )
 
 type Trip struct {
