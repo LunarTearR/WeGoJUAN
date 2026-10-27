@@ -12,8 +12,8 @@ export function CalendarRoute() {
   // วันที่แก้ไปแล้วในรอบนี้ — ใช้ถามว่าทริปไหนควร re-sync
   const [changedDays, setChangedDays] = useState<string[]>([])
 
-  function addChangedDay(day: string) {
-    setChangedDays((prev) => (prev.includes(day) ? prev : [...prev, day].sort()))
+  function addChangedDays(days: string[]) {
+    setChangedDays((prev) => [...new Set([...prev, ...days])].sort())
   }
 
   function changeMonth(delta: number) {
@@ -26,9 +26,9 @@ export function CalendarRoute() {
   return (
     <section className="space-y-4">
       <h1 className="text-xl font-semibold">ปฏิทินของฉัน</h1>
-      <p className="text-sm text-gray-600">กดวันเพื่อสลับ ว่าง → ไม่ว่าง → ยังไม่ระบุ</p>
+      <p className="text-sm text-gray-600">กดวันเพื่อตั้งว่าง/ไม่ว่าง ใส่เหตุผลส่วนตัว หรือเลือก "ถึงวันที่" เพื่อตั้งหลายวันพร้อมกัน</p>
       <ResyncBanner days={changedDays} onDismiss={() => setChangedDays([])} />
-      <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} onSaved={addChangedDay} />
+      <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} onSaved={addChangedDays} />
     </section>
   )
 }

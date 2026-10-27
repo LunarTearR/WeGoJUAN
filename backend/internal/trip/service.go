@@ -60,7 +60,8 @@ type Repository interface {
 // ไม่เคยอ่านสดๆ มาคำนวณ ดู docs/adr/0001
 type Calendar interface {
 	ListByUser(ctx context.Context, userID string, from, to time.Time) ([]availability.Mark, error)
-	SetMarks(ctx context.Context, userID string, set []availability.Mark, clear []time.Time) error
+	// MarkBusy: ไม่ว่างทุกวันใน days, Reason = reason เฉพาะวันที่ยังไม่มี Reason
+	MarkBusy(ctx context.Context, userID string, days []time.Time, reason string) error
 }
 
 type Service struct {
@@ -175,11 +176,12 @@ func (s *Service) AnswerConfirmedOffer(ctx context.Context, tripID uuid.UUID, v 
 		return ErrConfirmedChanged
 	}
 	if accept {
-		var busy []availability.Mark
+		var days []time.Time
 		for d := *t.ConfirmedStart; !d.After(*t.ConfirmedEnd()); d = d.AddDate(0, 0, 1) {
-			busy = append(busy, availability.Mark{Day: d, Status: availability.StatusBusy})
+			days = append(days, d)
 		}
-		if err := s.cal.SetMarks(ctx, me.UserID.String(), busy, nil); err != nil {
+		// Reason = ชื่อทริป (ไม่ทับ Reason ที่ User เขียนเอง)
+		if err := s.cal.MarkBusy(ctx, me.UserID.String(), days, t.Title); err != nil {
 			return err
 		}
 	}

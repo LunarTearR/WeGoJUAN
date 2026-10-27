@@ -6,10 +6,12 @@ export type Status = 'free' | 'busy'
 export type Mark = {
   day: ISODate
   status: Status
+  reason?: string // เหตุผลส่วนตัว — มีเฉพาะในปฏิทินส่วนตัว และเฉพาะวันไม่ว่าง
 }
 
-// หนึ่งรายการของ PUT: status null = ลบ Mark ของวันนั้น
+// หนึ่งรายการของ PUT: status null = ลบ Mark ของวันนั้น · reason ใส่ได้เฉพาะ busy
 export type MarkChange = {
   day: ISODate
   status: Status | null
+  reason?: string
 }

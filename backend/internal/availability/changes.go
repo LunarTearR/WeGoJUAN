@@ -3,19 +3,28 @@ package availability
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // MaxChanges จำกัดจำนวนวันต่อ request (1 ปีพอดี)
 const MaxChanges = 366
 
-var ErrInvalidDay = errors.New("invalid day")
+// MaxReasonRunes ความยาวสูงสุดของ Reason
+const MaxReasonRunes = 60
+
+var (
+	ErrInvalidDay    = errors.New("invalid day")
+	ErrInvalidReason = errors.New("invalid reason")
+)
 
 // ChangeRequest คือ body หนึ่งรายการของ PUT: status เป็น null = ลบ Mark (วันนั้นกลับเป็น Unknown)
 // ใช้ร่วมกับ PUT Mark ในทริปด้วย
 type ChangeRequest struct {
 	Day    string  `json:"day"`
 	Status *Status `json:"status"`
+	Reason *string `json:"reason"` // ใส่ได้เฉพาะ status "busy"
 }
 
 // ParseDay แปลง "YYYY-MM-DD" เป็นเที่ยงคืน UTC
@@ -44,6 +53,17 @@ func ParseChanges(reqs []ChangeRequest) (set []Mark, clear []time.Time, err erro
 		}
 		seen[d] = true
 
+		reason := ""
+		if r.Reason != nil {
+			reason = strings.TrimSpace(*r.Reason)
+		}
+		if reason != "" && (r.Status == nil || *r.Status != StatusBusy) {
+			return nil, nil, fmt.Errorf("%w: only busy days can have a reason (%s)", ErrInvalidReason, r.Day)
+		}
+		if utf8.RuneCountInString(reason) > MaxReasonRunes {
+			return nil, nil, fmt.Errorf("%w: at most %d characters", ErrInvalidReason, MaxReasonRunes)
+		}
+
 		if r.Status == nil {
 			clear = append(clear, d)
 			continue
@@ -51,7 +71,7 @@ func ParseChanges(reqs []ChangeRequest) (set []Mark, clear []time.Time, err erro
 		if !r.Status.Valid() {
 			return nil, nil, fmt.Errorf("%w: %q", ErrInvalidStatus, *r.Status)
 		}
-		set = append(set, Mark{Day: d, Status: *r.Status})
+		set = append(set, Mark{Day: d, Status: *r.Status, Reason: reason})
 	}
 	return set, clear, nil
 }

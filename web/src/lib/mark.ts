@@ -1,12 +1,5 @@
 import type { Mark, MarkChange, Status } from '@/types/mark'
 
-// กดวันเดิมซ้ำ: ยังไม่ระบุ → ว่าง → ไม่ว่าง → ยังไม่ระบุ
-export function nextStatus(s: Status | null): Status | null {
-  if (s === null) return 'free'
-  if (s === 'free') return 'busy'
-  return null
-}
-
 export const statusLabel: Record<Status | 'unknown', string> = {
   free: 'ว่าง',
   busy: 'ไม่ว่าง',

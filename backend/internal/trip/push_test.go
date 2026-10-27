@@ -92,3 +92,27 @@ func TestPush_DayOutOfRange(t *testing.T) {
 		t.Error("out-of-range push must save nothing")
 	}
 }
+
+// Reason ของตัวเองช่วยเลือกวันตอน Push — เห็นเฉพาะเจ้าของ ไม่ถูกคัดลอกเข้าทริป
+func TestPushPreview_IncludesOwnReason(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.cal = &fakeCalendar{marks: []availability.Mark{{Day: mustDay(t, "2026-12-06"), Status: availability.StatusBusy, Reason: "workday"}}}
+
+	days, err := newTestService(repo, defaultNow).PushPreview(context.Background(), repo.trip.ID, Viewer{UserID: natID})
+
+	if err != nil || len(days) != 1 || days[0].CalendarReason != "workday" {
+		t.Fatalf("preview = %+v err = %v, want Dec 6 with reason workday", days, err)
+	}
+}
+
+func TestPush_NeverCopiesReason(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.cal = &fakeCalendar{marks: []availability.Mark{{Day: mustDay(t, "2026-12-06"), Status: availability.StatusBusy, Reason: "workday"}}}
+
+	if err := newTestService(repo, defaultNow).Push(context.Background(), repo.trip.ID, Viewer{UserID: natID}, []time.Time{mustDay(t, "2026-12-06")}); err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.savedSet) != 1 || repo.savedSet[0].Reason != "" {
+		t.Errorf("saved = %+v, want busy without reason", repo.savedSet)
+	}
+}

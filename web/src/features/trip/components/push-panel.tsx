@@ -62,6 +62,7 @@ export function PushPanel({ trip, onDone }: PushPanelProps) {
               <input type="checkbox" checked={isPicked(d.day)} onChange={() => toggle(d.day)} />
               <span>
                 {d.day} · ในทริป: {label(d.trip_status)} → ปฏิทิน: {label(d.calendar_status)}
+                {d.calendar_reason && <span className="text-gray-500"> ({d.calendar_reason})</span>}
                 {confirmed.has(d.day) && <span className="text-gray-500"> (วันที่ยืนยันของทริปนี้)</span>}
               </span>
             </label>
