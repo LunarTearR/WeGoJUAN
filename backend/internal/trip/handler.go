@@ -35,6 +35,9 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Get("/resync", requireAuth, h.resync) // ?days=2026-12-05,2026-12-06
 	r.Get("/:id", optionalAuth, h.getByID)
 	r.Patch("/:id", optionalAuth, h.updateDates)
+	r.Delete("/:id", optionalAuth, h.deleteTrip)
+	r.Delete("/:id/members/:memberId", optionalAuth, h.removeMember)
+	r.Post("/:id/invite-link", optionalAuth, h.replaceInviteLink)
 	r.Get("/:id/marks", optionalAuth, h.marks)
 	r.Put("/:id/marks/me", optionalAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
 	r.Get("/:id/suggestions", optionalAuth, h.suggestions)
@@ -387,6 +390,44 @@ func (h *Handler) updateDates(c fiber.Ctx) error {
 	return c.JSON(newTripResponse(t))
 }
 
+func (h *Handler) deleteTrip(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := h.svc.Delete(c, tripID, viewerFrom(c)); err != nil {
+		return tripError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) removeMember(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	memberID, err := uuid.Parse(c.Params("memberId"))
+	if err != nil {
+		return fiber.NewError(fiber.StatusNotFound, "member not found")
+	}
+	if err := h.svc.RemoveMember(c, tripID, viewerFrom(c), memberID); err != nil {
+		return tripError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) replaceInviteLink(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	code, err := h.svc.ReplaceInviteLink(c, tripID, viewerFrom(c))
+	if err != nil {
+		return tripError(err)
+	}
+	return c.JSON(fiber.Map{"invite_code": code})
+}
+
 func (h *Handler) confirm(c fiber.Ctx) error {
 	tripID, err := parseTripID(c)
 	if err != nil {
@@ -446,7 +487,8 @@ func tripError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	case errors.Is(err, ErrGuestNotAllowed), errors.Is(err, ErrNotOrganizer):
 		return fiber.NewError(fiber.StatusForbidden, err.Error())
-	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed), errors.Is(err, ErrInvalidTrip):
+	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed), errors.Is(err, ErrInvalidTrip),
+		errors.Is(err, ErrCannotRemoveSelf):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrDayOutOfRange), errors.Is(err, availability.ErrInvalidDay):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())

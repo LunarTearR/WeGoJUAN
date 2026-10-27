@@ -45,6 +45,10 @@ type Repository interface {
 	SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error
 	// UpdateDates บันทึกวัน, Duration, Confirmed Dates และ DateRangeChangedAt ใน UPDATE เดียว
 	UpdateDates(ctx context.Context, t Trip) (Trip, error)
+	SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error
+	// DeleteMember: ErrNotFound ถ้าไม่มีสมาชิกคนนี้ในทริปนี้
+	DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error
+	Delete(ctx context.Context, tripID uuid.UUID) error
 	SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error
 	// ListPushedOverlapping คืนทริปที่ User คนนี้เคย Push และ Date Range มีวันใดวันหนึ่งใน days
 	ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error)
@@ -120,7 +124,7 @@ func promptsFor(t Trip, me Member) Prompts {
 // UpdateDates แก้ Date Range / Duration — ผู้จัดเท่านั้น
 // Confirmed Dates ที่ไม่พอดีกับช่วงใหม่ถูกยกเลิกในการแก้ครั้งเดียวกัน; ขยายช่วง (มีวันใหม่) = ชวนคนที่เคย Push ให้ Push อีกครั้ง
 func (s *Service) UpdateDates(ctx context.Context, tripID uuid.UUID, v Viewer, in DatesUpdate) (Trip, error) {
-	t, err := s.asOrganizer(ctx, tripID, v)
+	t, _, err := s.asOrganizer(ctx, tripID, v)
 	if err != nil {
 		return Trip{}, err
 	}
@@ -302,7 +306,7 @@ func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) (
 
 // Confirm ตั้ง Confirmed Dates เป็น Window ที่เริ่ม start — ผู้จัดเท่านั้น
 func (s *Service) Confirm(ctx context.Context, tripID uuid.UUID, v Viewer, start time.Time) (Trip, error) {
-	t, err := s.asOrganizer(ctx, tripID, v)
+	t, _, err := s.asOrganizer(ctx, tripID, v)
 	if err != nil {
 		return Trip{}, err
 	}
@@ -318,26 +322,58 @@ func (s *Service) Confirm(ctx context.Context, tripID uuid.UUID, v Viewer, start
 
 // ClearConfirmed ยกเลิก Confirmed Dates → ทริปกลับไปเป็นกำลังหาวัน
 func (s *Service) ClearConfirmed(ctx context.Context, tripID uuid.UUID, v Viewer) error {
-	if _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {
 		return err
 	}
 	return s.repo.SetConfirmed(ctx, tripID, nil)
 }
 
-// asOrganizer คืนทริปถ้า viewer เป็นผู้จัด — สมาชิกคนอื่นได้ ErrNotOrganizer คนนอกได้ ErrNotFound
-func (s *Service) asOrganizer(ctx context.Context, tripID uuid.UUID, v Viewer) (Trip, error) {
+// asOrganizer คืนทริปและสมาชิกของผู้จัดถ้า viewer เป็นผู้จัด — สมาชิกคนอื่นได้ ErrNotOrganizer คนนอกได้ ErrNotFound
+func (s *Service) asOrganizer(ctx context.Context, tripID uuid.UUID, v Viewer) (Trip, Member, error) {
 	me, err := s.findMember(ctx, tripID, v)
 	if err != nil {
-		return Trip{}, err
+		return Trip{}, Member{}, err
 	}
 	t, err := s.repo.FindByID(ctx, tripID)
 	if err != nil {
-		return Trip{}, err
+		return Trip{}, Member{}, err
 	}
 	if me.IsGuest() || me.UserID != t.OrganizerID {
-		return Trip{}, ErrNotOrganizer
+		return Trip{}, Member{}, ErrNotOrganizer
 	}
-	return t, nil
+	return t, me, nil
+}
+
+// RemoveMember นำสมาชิกคนอื่นออก — Mark ในทริปของคนนั้นหายไปด้วย ชื่อว่างให้คนอื่นใช้ได้ เข้าใหม่ผ่านลิงก์ปัจจุบันได้
+func (s *Service) RemoveMember(ctx context.Context, tripID uuid.UUID, v Viewer, memberID uuid.UUID) error {
+	_, me, err := s.asOrganizer(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	if memberID == me.ID {
+		return ErrCannotRemoveSelf
+	}
+	return s.repo.DeleteMember(ctx, tripID, memberID)
+}
+
+// ReplaceInviteLink สุ่มลิงก์เชิญใหม่ — ลิงก์เก่าใช้ไม่ได้ทันที
+func (s *Service) ReplaceInviteLink(ctx context.Context, tripID uuid.UUID, v Viewer) (string, error) {
+	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+		return "", err
+	}
+	code, err := newInviteCode()
+	if err != nil {
+		return "", err
+	}
+	return code, s.repo.SetInviteCode(ctx, tripID, code)
+}
+
+// Delete ลบทริปทั้งหมด (สมาชิกและ Mark หายไปด้วย)
+func (s *Service) Delete(ctx context.Context, tripID uuid.UUID, v Viewer) error {
+	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, tripID)
 }
 
 // TripsToResync: แก้ปฏิทินส่วนตัววันไหนไป ทริปไหนที่เคย Push แล้วทับวันนั้นควรได้รับการชวน re-sync

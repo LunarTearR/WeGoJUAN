@@ -18,6 +18,7 @@ var (
 	ErrNotOrganizer       = errors.New("only the organizer can do this")
 	ErrInvalidWindow      = errors.New("not a valid window for this trip")
 	ErrNotConfirmed       = errors.New("trip has no confirmed dates")
+	ErrCannotRemoveSelf   = errors.New("the organizer cannot remove themselves")
 )
 
 type Trip struct {

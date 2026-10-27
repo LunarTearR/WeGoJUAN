@@ -267,3 +267,24 @@ func (r *PostgresRepository) UpdateDates(ctx context.Context, t Trip) (Trip, err
 		RETURNING `+tripColumns,
 		t.ID, t.StartDate, t.EndDate, t.DurationDays, t.ConfirmedStart, t.DateRangeChangedAt))
 }
+
+func (r *PostgresRepository) SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error {
+	_, err := r.db.Exec(ctx, `UPDATE trips SET invite_code = $2 WHERE id = $1`, tripID, code)
+	return err
+}
+
+func (r *PostgresRepository) DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, `DELETE FROM trip_members WHERE trip_id = $1 AND id = $2`, tripID, memberID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PostgresRepository) Delete(ctx context.Context, tripID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM trips WHERE id = $1`, tripID)
+	return err
+}

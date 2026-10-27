@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError } from '@/lib/api-client'
 import { eachDay } from '@/lib/date'
 import { useTrip } from '@/features/trip/api/get-trip'
+import { useDeleteTrip } from '@/features/trip/api/manage-trip'
 import { ConfirmedDates } from '@/features/trip/components/confirmed-dates'
 import { ConfirmedOfferBanner } from '@/features/trip/components/confirmed-offer-banner'
 import { EditDatesForm } from '@/features/trip/components/edit-dates-form'
@@ -24,6 +25,8 @@ export function TripDetailRoute() {
   // หลังตอบรับทำเครื่องหมายไม่ว่าง → ชวน re-sync ทริปอื่นที่เคย Push แล้วทับวันเหล่านั้น
   const [resyncDays, setResyncDays] = useState<string[]>([])
   const [editingDates, setEditingDates] = useState(false)
+  const navigate = useNavigate()
+  const deleteMutation = useDeleteTrip(tripId)
 
   if (isPending) {
     return <p className="text-gray-500">กำลังโหลดทริป…</p>
@@ -60,10 +63,10 @@ export function TripDetailRoute() {
         <h2 className="font-medium">ช่วงวันที่แนะนำ</h2>
         <SuggestionList trip={trip} members={members} isOrganizer={me.is_organizer} />
       </div>
-      <InviteLinkBox code={trip.invite_code} />
+      <InviteLinkBox tripId={trip.id} code={trip.invite_code} canReplace={me.is_organizer} />
       <div className="space-y-2">
         <h2 className="font-medium">สมาชิก</h2>
-        <MemberList members={members} />
+        <MemberList tripId={trip.id} members={members} me={me} />
       </div>
       <div className="space-y-2">
         <h2 className="font-medium">วันว่างของสมาชิก</h2>
@@ -77,6 +80,23 @@ export function TripDetailRoute() {
           ))}
         <TripMarksGrid trip={trip} members={members} me={me} />
       </div>
+      {me.is_organizer && (
+        <div className="border-t border-gray-200 pt-4">
+          <button
+            type="button"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (window.confirm(`ลบทริป "${trip.title}"? สมาชิกและวันว่างในทริปจะหายไปทั้งหมด`)) {
+                deleteMutation.mutate(undefined, { onSuccess: () => navigate('/trips') })
+              }
+            }}
+            className="text-sm text-red-700 underline"
+          >
+            ลบทริป
+          </button>
+          {deleteMutation.error && <p className="text-sm text-red-700">ลบไม่สำเร็จ: {deleteMutation.error.message}</p>}
+        </div>
+      )}
     </section>
   )
 }

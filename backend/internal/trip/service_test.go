@@ -43,6 +43,12 @@ type fakeRepo struct {
 
 	updated []Trip // Trip ที่ส่งเข้า UpdateDates
 
+	codes          map[string]Trip // nil = ใช้ byCode/byCodeErr
+	setCodes       []string
+	deleteErr      error
+	deletedMembers []uuid.UUID
+	deletedTrips   []uuid.UUID
+
 	confirmCalls   int
 	confirmedStart *time.Time
 
@@ -176,7 +182,39 @@ func (r *fakeRepo) SaveMarks(ctx context.Context, memberID uuid.UUID, set []avai
 }
 
 func (r *fakeRepo) FindByInviteCode(ctx context.Context, code string) (Trip, error) {
+	if r.codes != nil { // test ที่สนใจว่าลิงก์ไหนยังใช้ได้
+		if t, ok := r.codes[code]; ok {
+			return t, nil
+		}
+		return Trip{}, ErrNotFound
+	}
 	return r.byCode, r.byCodeErr
+}
+
+func (r *fakeRepo) SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error {
+	r.setCodes = append(r.setCodes, code)
+	if r.codes != nil {
+		for c, t := range r.codes {
+			if t.ID == tripID {
+				delete(r.codes, c)
+			}
+		}
+		r.codes[code] = r.trip
+	}
+	return nil
+}
+
+func (r *fakeRepo) DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error {
+	if r.deleteErr != nil {
+		return r.deleteErr
+	}
+	r.deletedMembers = append(r.deletedMembers, memberID)
+	return nil
+}
+
+func (r *fakeRepo) Delete(ctx context.Context, tripID uuid.UUID) error {
+	r.deletedTrips = append(r.deletedTrips, tripID)
+	return nil
 }
 
 func (r *fakeRepo) AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error) {
