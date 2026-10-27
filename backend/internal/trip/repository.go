@@ -288,3 +288,14 @@ func (r *PostgresRepository) Delete(ctx context.Context, tripID uuid.UUID) error
 	_, err := r.db.Exec(ctx, `DELETE FROM trips WHERE id = $1`, tripID)
 	return err
 }
+
+func (r *PostgresRepository) ClaimGuest(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error) {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE trip_members SET user_id = $1, guest_token_hash = NULL
+		WHERE guest_token_hash = $2
+		  AND trip_id NOT IN (SELECT trip_id FROM trip_members WHERE user_id = $1)`, userID, guestTokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}

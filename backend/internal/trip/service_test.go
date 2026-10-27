@@ -43,6 +43,11 @@ type fakeRepo struct {
 
 	updated []Trip // Trip ที่ส่งเข้า UpdateDates
 
+	claimCalls  int
+	claimedFor  uuid.UUID
+	claimedHash string
+	claimN      int
+
 	codes          map[string]Trip // nil = ใช้ byCode/byCodeErr
 	setCodes       []string
 	deleteErr      error
@@ -189,6 +194,12 @@ func (r *fakeRepo) FindByInviteCode(ctx context.Context, code string) (Trip, err
 		return Trip{}, ErrNotFound
 	}
 	return r.byCode, r.byCodeErr
+}
+
+func (r *fakeRepo) ClaimGuest(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error) {
+	r.claimCalls++
+	r.claimedFor, r.claimedHash = userID, guestTokenHash
+	return r.claimN, nil
 }
 
 func (r *fakeRepo) SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error {

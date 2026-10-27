@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Get("/", requireAuth, h.listMine)
 	// route ตายตัวต้องมาก่อน /:id ไม่งั้น "resync" ถูกจับเป็น id
 	r.Get("/resync", requireAuth, h.resync) // ?days=2026-12-05,2026-12-06
+	r.Post("/claim-guest", requireAuth, h.claimGuest)
 	r.Get("/:id", optionalAuth, h.getByID)
 	r.Patch("/:id", optionalAuth, h.updateDates)
 	r.Delete("/:id", optionalAuth, h.deleteTrip)
@@ -323,6 +324,19 @@ func (h *Handler) resync(c fiber.Ctx) error {
 		resp = append(resp, newTripResponse(t))
 	}
 	return c.JSON(resp)
+}
+
+// claimGuest: เว็บเรียกหลัง login/สมัคร — ไม่ต้องมี body (cookie session แบบ Lax ไม่ถูกส่งจาก POST ข้ามเว็บอยู่แล้ว)
+func (h *Handler) claimGuest(c fiber.Ctx) error {
+	hash := ""
+	if t := auth.GuestToken(c); t != "" {
+		hash = auth.HashGuestToken(t)
+	}
+	n, err := h.svc.ClaimGuestMemberships(c, userIDFrom(c), hash)
+	if err != nil {
+		return err
+	}
+	return c.JSON(fiber.Map{"claimed": n})
 }
 
 func (h *Handler) pushPreview(c fiber.Ctx) error {

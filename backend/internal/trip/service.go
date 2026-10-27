@@ -49,6 +49,8 @@ type Repository interface {
 	// DeleteMember: ErrNotFound ถ้าไม่มีสมาชิกคนนี้ในทริปนี้
 	DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error
 	Delete(ctx context.Context, tripID uuid.UUID) error
+	// ClaimGuest เปลี่ยนสมาชิก Guest ของเครื่องนี้เป็นของ User (ข้ามทริปที่ User เป็นสมาชิกอยู่แล้ว) คืนจำนวนที่เปลี่ยน
+	ClaimGuest(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error)
 	SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error
 	// ListPushedOverlapping คืนทริปที่ User คนนี้เคย Push และ Date Range มีวันใดวันหนึ่งใน days
 	ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error)
@@ -390,6 +392,15 @@ func (s *Service) Delete(ctx context.Context, tripID uuid.UUID, v Viewer) error 
 		return err
 	}
 	return s.repo.Delete(ctx, tripID)
+}
+
+// ClaimGuestMemberships: Guest ที่สมัคร/login บนเครื่องเดิมได้ที่นั่งและ Mark ในทุกทริปของเครื่องนี้มาเป็นของบัญชี
+// หลังจากนี้เปิดจากเครื่องไหนก็ได้ — ทริปที่ User เป็นสมาชิกอยู่แล้วถูกข้าม (ยังเข้าได้ผ่าน findMember fallback)
+func (s *Service) ClaimGuestMemberships(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error) {
+	if guestTokenHash == "" {
+		return 0, nil
+	}
+	return s.repo.ClaimGuest(ctx, userID, guestTokenHash)
 }
 
 // TripsToResync: แก้ปฏิทินส่วนตัววันไหนไป ทริปไหนที่เคย Push แล้วทับวันนั้นควรได้รับการชวน re-sync
