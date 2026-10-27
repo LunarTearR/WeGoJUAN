@@ -464,3 +464,47 @@ func TestGet_GuestViewer(t *testing.T) {
 		t.Fatalf("me = %+v err = %v, want the Guest", d.Me, err)
 	}
 }
+
+func TestSuggestions_SkipsWindowsStartingBeforeToday(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.trip.EndDate = mustDay(t, "2026-12-10")
+	repo.trip.DurationDays = 2
+	// 18:00 UTC วันที่ 3 = 01:00 วันที่ 4 ในไทย
+	svc := newTestService(repo, time.Date(2026, 12, 3, 18, 0, 0, 0, time.UTC))
+
+	ws, err := svc.Suggestions(context.Background(), repo.trip.ID, Viewer{UserID: natID})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ws) != 6 { // เริ่มได้ 4..9 ธ.ค.
+		t.Errorf("got %d windows, want 6", len(ws))
+	}
+	for _, w := range ws {
+		if w.Start.Before(mustDay(t, "2026-12-04")) {
+			t.Errorf("window starts %v, before today (Dec 4 in Thailand)", w.Start)
+		}
+	}
+}
+
+func TestSuggestions_TripOver_Empty(t *testing.T) {
+	repo, _ := decemberTrip(t)
+
+	ws, err := newTestService(repo, time.Date(2026, 12, 25, 5, 0, 0, 0, time.UTC)).
+		Suggestions(context.Background(), repo.trip.ID, Viewer{UserID: natID})
+
+	if err != nil || len(ws) != 0 {
+		t.Errorf("windows = %d err = %v, want none", len(ws), err)
+	}
+}
+
+func TestSuggestions_NonMember_NotFound(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.memberErr = ErrNotFound
+
+	_, err := newTestService(repo, defaultNow).Suggestions(context.Background(), repo.trip.ID, Viewer{UserID: natID})
+
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}

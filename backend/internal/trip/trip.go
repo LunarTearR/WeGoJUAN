@@ -64,3 +64,13 @@ type Detail struct {
 	Members []Member
 	Me      Member
 }
+
+// Window คือช่วงวันติดกันยาวเท่า Duration ใน Date Range — หนึ่งตัวเลือกว่าจะไปช่วงไหน
+// สมาชิกทุกคนอยู่ในกลุ่มเดียวพอดี เรียงตามลำดับสมาชิก
+type Window struct {
+	Start     time.Time
+	End       time.Time
+	Available []uuid.UUID // ว่างครบทุกวันใน Window
+	Busy      []uuid.UUID // ไม่ว่างอย่างน้อย 1 วัน
+	Unknown   []uuid.UUID // ไม่ได้ไม่ว่างสักวัน แต่ยังไม่ระบุบางวัน
+}

@@ -54,3 +54,12 @@ export type TripMark = {
   day: ISODate
   status: Status
 }
+
+// ตรงกับ windowResponse ฝั่ง Go — เรียงแล้ว: Busy น้อยสุด → Available มากสุด → เริ่มเร็วสุด
+export type Suggestion = {
+  start: ISODate
+  end: ISODate
+  available: string[] // member ID
+  busy: string[]
+  unknown: string[]
+}

@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Get("/:id", optionalAuth, h.getByID)
 	r.Get("/:id/marks", optionalAuth, h.marks)
 	r.Put("/:id/marks/me", optionalAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
+	r.Get("/:id/suggestions", optionalAuth, h.suggestions)
 }
 
 type createTripRequest struct {
@@ -69,6 +70,14 @@ type markResponse struct {
 	MemberID uuid.UUID           `json:"member_id"`
 	Day      string              `json:"day"`
 	Status   availability.Status `json:"status"`
+}
+
+type windowResponse struct {
+	Start     string      `json:"start"` // "2026-12-05"
+	End       string      `json:"end"`
+	Available []uuid.UUID `json:"available"` // member ID
+	Busy      []uuid.UUID `json:"busy"`
+	Unknown   []uuid.UUID `json:"unknown"`
 }
 
 func newTripResponse(t Trip) tripResponse {
@@ -205,6 +214,40 @@ func (h *Handler) setMyMarks(c fiber.Ctx) error {
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func (h *Handler) suggestions(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	windows, err := h.svc.Suggestions(c, tripID, viewerFrom(c))
+	if errors.Is(err, ErrNotFound) {
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	}
+	if err != nil {
+		return err
+	}
+
+	resp := make([]windowResponse, 0, len(windows))
+	for _, w := range windows {
+		resp = append(resp, windowResponse{
+			Start:     w.Start.Format(time.DateOnly),
+			End:       w.End.Format(time.DateOnly),
+			Available: nonNil(w.Available),
+			Busy:      nonNil(w.Busy),
+			Unknown:   nonNil(w.Unknown),
+		})
+	}
+	return c.JSON(resp)
+}
+
+// nonNil ให้ JSON เป็น [] แทน null ฝั่งเว็บจะได้ใช้ .length ได้เลย
+func nonNil(ids []uuid.UUID) []uuid.UUID {
+	if ids == nil {
+		return []uuid.UUID{}
+	}
+	return ids
 }
 
 // parseTripID: id ที่ไม่ใช่ UUID ตอบ 404 เหมือนไม่มีทริปนี้

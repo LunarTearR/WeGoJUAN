@@ -85,3 +85,40 @@ func TestPutMyMarks_204(t *testing.T) {
 		t.Errorf("saved for %v set=%v clear=%v", repo.savedFor, repo.savedSet, repo.savedClear)
 	}
 }
+
+func TestGetSuggestions_200(t *testing.T) {
+	repo, me := decemberTrip(t)
+	repo.marks = map[uuid.UUID][]availability.Mark{me.ID: {
+		{Day: mustDay(t, "2026-12-01"), Status: availability.StatusFree},
+		{Day: mustDay(t, "2026-12-02"), Status: availability.StatusFree},
+		{Day: mustDay(t, "2026-12-03"), Status: availability.StatusFree},
+	}}
+	app := newTestApp(t, repo)
+
+	res := request(t, app, http.MethodGet, "/trips/"+repo.trip.ID.String()+"/suggestions", "", loginAs(t, app, natID))
+
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", res.StatusCode)
+	}
+	b, _ := io.ReadAll(res.Body)
+	var got []struct {
+		Start     string   `json:"start"`
+		End       string   `json:"end"`
+		Available []string `json:"available"`
+		Busy      []string `json:"busy"`
+		Unknown   []string `json:"unknown"`
+	}
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 18 { // 20 วัน ไป 3 วัน
+		t.Fatalf("got %d windows, want 18", len(got))
+	}
+	top := got[0]
+	if top.Start != "2026-12-01" || top.End != "2026-12-03" || len(top.Available) != 1 || top.Available[0] != me.ID.String() {
+		t.Errorf("top = %+v", top)
+	}
+	if top.Busy == nil || top.Unknown == nil {
+		t.Error("empty buckets must be [] not null")
+	}
+}

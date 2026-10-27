@@ -189,6 +189,35 @@ func (s *Service) JoinAsGuest(ctx context.Context, code, guestTokenHash, display
 	return t, m, err
 }
 
+// Suggestions จัดอันดับ Window จาก Mark ในทริป — Window ที่เริ่มก่อนวันนี้ไม่แนะนำ
+func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) ([]Window, error) {
+	if _, err := s.repo.FindMember(ctx, tripID, v); err != nil {
+		return nil, err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	members, err := s.repo.Members(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	marks, err := s.repo.ListMarks(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	from := t.StartDate
+	if today := Today(s.now()); today.After(from) {
+		from = today
+	}
+	ids := make([]uuid.UUID, len(members))
+	for i, m := range members {
+		ids[i] = m.ID
+	}
+	return SuggestWindows(ids, marks, from, t.EndDate, t.DurationDays), nil
+}
+
 func validateDisplayName(name string) error {
 	if n := utf8.RuneCountInString(name); n < 1 || n > maxDisplayNameRunes {
 		return ErrInvalidDisplayName
