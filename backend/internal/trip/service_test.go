@@ -39,6 +39,9 @@ type fakeRepo struct {
 
 	pushedAt map[uuid.UUID]time.Time
 
+	confirmCalls   int
+	confirmedStart *time.Time
+
 	resyncTrips []Trip
 	resyncDays  []time.Time
 	resyncCalls int
@@ -99,6 +102,12 @@ func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, err
 
 func (r *fakeRepo) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error) {
 	return r.marks, nil
+}
+
+func (r *fakeRepo) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {
+	r.confirmCalls++
+	r.confirmedStart = start
+	return nil
 }
 
 func (r *fakeRepo) ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {

@@ -41,6 +41,8 @@ type Repository interface {
 	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
 	SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error
 	SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error
+	// SetConfirmed: nil = ยกเลิก Confirmed Dates
+	SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error
 	// ListPushedOverlapping คืนทริปที่ User คนนี้เคย Push และ Date Range มีวันใดวันหนึ่งใน days
 	ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error)
 }
@@ -227,6 +229,46 @@ func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) (
 		ids[i] = m.ID
 	}
 	return SuggestWindows(ids, marks, from, t.EndDate, t.DurationDays), nil
+}
+
+// Confirm ตั้ง Confirmed Dates เป็น Window ที่เริ่ม start — ผู้จัดเท่านั้น
+func (s *Service) Confirm(ctx context.Context, tripID uuid.UUID, v Viewer, start time.Time) (Trip, error) {
+	t, err := s.asOrganizer(ctx, tripID, v)
+	if err != nil {
+		return Trip{}, err
+	}
+	if !t.isValidWindow(start, Today(s.now())) {
+		return Trip{}, ErrInvalidWindow
+	}
+	if err := s.repo.SetConfirmed(ctx, tripID, &start); err != nil {
+		return Trip{}, err
+	}
+	t.ConfirmedStart = &start
+	return t, nil
+}
+
+// ClearConfirmed ยกเลิก Confirmed Dates → ทริปกลับไปเป็นกำลังหาวัน
+func (s *Service) ClearConfirmed(ctx context.Context, tripID uuid.UUID, v Viewer) error {
+	if _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+		return err
+	}
+	return s.repo.SetConfirmed(ctx, tripID, nil)
+}
+
+// asOrganizer คืนทริปถ้า viewer เป็นผู้จัด — สมาชิกคนอื่นได้ ErrNotOrganizer คนนอกได้ ErrNotFound
+func (s *Service) asOrganizer(ctx context.Context, tripID uuid.UUID, v Viewer) (Trip, error) {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return Trip{}, err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return Trip{}, err
+	}
+	if me.IsGuest() || me.UserID != t.OrganizerID {
+		return Trip{}, ErrNotOrganizer
+	}
+	return t, nil
 }
 
 // TripsToResync: แก้ปฏิทินส่วนตัววันไหนไป ทริปไหนที่เคย Push แล้วทับวันนั้นควรได้รับการชวน re-sync

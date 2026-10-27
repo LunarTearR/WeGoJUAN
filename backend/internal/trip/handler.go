@@ -39,6 +39,8 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Get("/:id/suggestions", optionalAuth, h.suggestions)
 	r.Get("/:id/push-preview", optionalAuth, h.pushPreview)
 	r.Post("/:id/push", optionalAuth, h.push)
+	r.Put("/:id/confirmed", optionalAuth, h.confirm)
+	r.Delete("/:id/confirmed", optionalAuth, h.clearConfirmed)
 }
 
 type createTripRequest struct {
@@ -56,6 +58,9 @@ type tripResponse struct {
 	DurationDays int       `json:"duration_days"`
 	OrganizerID  uuid.UUID `json:"organizer_id"`
 	InviteCode   string    `json:"invite_code"`
+	// null ทั้งคู่ = กำลังหาวัน
+	ConfirmedStart *string `json:"confirmed_start"`
+	ConfirmedEnd   *string `json:"confirmed_end"`
 }
 
 type memberResponse struct {
@@ -91,20 +96,34 @@ type pushDayResponse struct {
 	CalendarStatus *availability.Status `json:"calendar_status"`
 }
 
+type confirmRequest struct {
+	Start string `json:"start"` // วันแรกของ Window ที่เลือก
+}
+
 type pushRequest struct {
 	Days []string `json:"days"` // วันที่เลือกให้ทับด้วยปฏิทินส่วนตัว
 }
 
 func newTripResponse(t Trip) tripResponse {
 	return tripResponse{
-		ID:           t.ID,
-		Title:        t.Title,
-		StartDate:    t.StartDate.Format(time.DateOnly),
-		EndDate:      t.EndDate.Format(time.DateOnly),
-		DurationDays: t.DurationDays,
-		OrganizerID:  t.OrganizerID,
-		InviteCode:   t.InviteCode,
+		ID:             t.ID,
+		Title:          t.Title,
+		StartDate:      t.StartDate.Format(time.DateOnly),
+		EndDate:        t.EndDate.Format(time.DateOnly),
+		DurationDays:   t.DurationDays,
+		OrganizerID:    t.OrganizerID,
+		InviteCode:     t.InviteCode,
+		ConfirmedStart: dateOrNil(t.ConfirmedStart),
+		ConfirmedEnd:   dateOrNil(t.ConfirmedEnd()),
 	}
+}
+
+func dateOrNil(d *time.Time) *string {
+	if d == nil {
+		return nil
+	}
+	s := d.Format(time.DateOnly)
+	return &s
 }
 
 func newMemberResponse(t Trip, m Member) memberResponse {
@@ -325,13 +344,49 @@ func (h *Handler) push(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (h *Handler) confirm(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := requireJSON(c); err != nil {
+		return err
+	}
+	var req confirmRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	start, err := availability.ParseDay(req.Start)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	t, err := h.svc.Confirm(c, tripID, viewerFrom(c), start)
+	if err != nil {
+		return tripError(err)
+	}
+	return c.JSON(newTripResponse(t))
+}
+
+func (h *Handler) clearConfirmed(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := h.svc.ClearConfirmed(c, tripID, viewerFrom(c)); err != nil {
+		return tripError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // tripError แปลง error ของ service เป็น HTTP status ที่ใช้ร่วมกันทุก route ของทริป
 func tripError(err error) error {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
-	case errors.Is(err, ErrGuestNotAllowed):
+	case errors.Is(err, ErrGuestNotAllowed), errors.Is(err, ErrNotOrganizer):
 		return fiber.NewError(fiber.StatusForbidden, err.Error())
+	case errors.Is(err, ErrInvalidWindow):
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrDayOutOfRange), errors.Is(err, availability.ErrInvalidDay):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	default:

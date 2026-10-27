@@ -15,6 +15,8 @@ var (
 	ErrInvalidDisplayName = errors.New("display name must be 1-50 characters")
 	ErrDayOutOfRange      = errors.New("day is outside the trip's date range")
 	ErrGuestNotAllowed    = errors.New("only signed-up users can do this")
+	ErrNotOrganizer       = errors.New("only the organizer can do this")
+	ErrInvalidWindow      = errors.New("not a valid window for this trip")
 )
 
 type Trip struct {
@@ -26,6 +28,22 @@ type Trip struct {
 	DurationDays int // ทริปยาวกี่วันติดกัน
 	InviteCode   string
 	CreatedAt    time.Time
+	// ConfirmedStart = วันแรกของ Confirmed Dates (nil = กำลังหาวัน)
+	ConfirmedStart *time.Time
+}
+
+// ConfirmedEnd คือวันสุดท้ายของ Confirmed Dates (nil ถ้ายังไม่ยืนยัน)
+func (t Trip) ConfirmedEnd() *time.Time {
+	if t.ConfirmedStart == nil {
+		return nil
+	}
+	end := t.ConfirmedStart.AddDate(0, 0, t.DurationDays-1)
+	return &end
+}
+
+// isValidWindow: อยู่ใน Date Range ครบทั้ง Window และไม่เริ่มก่อนวันนี้
+func (t Trip) isValidWindow(start, today time.Time) bool {
+	return !start.Before(t.StartDate) && !start.AddDate(0, 0, t.DurationDays-1).After(t.EndDate) && !start.Before(today)
 }
 
 type NewTrip struct {

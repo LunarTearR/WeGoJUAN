@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { ApiError } from '@/lib/api-client'
 import { useTrip } from '@/features/trip/api/get-trip'
+import { ConfirmedDates } from '@/features/trip/components/confirmed-dates'
 import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
 import { PushPanel } from '@/features/trip/components/push-panel'
@@ -35,9 +36,10 @@ export function TripDetailRoute() {
           เลือกได้ {trip.start_date} ถึง {trip.end_date} · ไป {trip.duration_days} วัน
         </p>
       </div>
+      <ConfirmedDates trip={trip} members={members} isOrganizer={me.is_organizer} />
       <div className="space-y-2">
         <h2 className="font-medium">ช่วงวันที่แนะนำ</h2>
-        <SuggestionList tripId={trip.id} members={members} />
+        <SuggestionList trip={trip} members={members} isOrganizer={me.is_organizer} />
       </div>
       <InviteLinkBox code={trip.invite_code} />
       <div className="space-y-2">

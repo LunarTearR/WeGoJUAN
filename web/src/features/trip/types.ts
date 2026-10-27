@@ -10,6 +10,8 @@ export type Trip = {
   duration_days: number
   organizer_id: string
   invite_code: string
+  confirmed_start: ISODate | null // null = กำลังหาวัน (Finding Dates)
+  confirmed_end: ISODate | null
 }
 
 // ตรงกับ memberResponse ฝั่ง Go

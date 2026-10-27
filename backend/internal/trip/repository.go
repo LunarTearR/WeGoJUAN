@@ -23,11 +23,14 @@ func NewRepository(db *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-const tripColumns = `id, organizer_id, title, start_date, end_date, duration_days, invite_code, created_at`
+const tripColumns = `id, organizer_id, title, start_date, end_date, duration_days, invite_code, created_at, confirmed_start`
+
+// tripColumnsT เหมือน tripColumns แต่ระบุ alias t. สำหรับ query ที่ join กับ trip_members
+const tripColumnsT = `t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at, t.confirmed_start`
 
 func scanTrip(row pgx.Row) (Trip, error) {
 	var t Trip
-	err := row.Scan(&t.ID, &t.OrganizerID, &t.Title, &t.StartDate, &t.EndDate, &t.DurationDays, &t.InviteCode, &t.CreatedAt)
+	err := row.Scan(&t.ID, &t.OrganizerID, &t.Title, &t.StartDate, &t.EndDate, &t.DurationDays, &t.InviteCode, &t.CreatedAt, &t.ConfirmedStart)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Trip{}, ErrNotFound
 	}
@@ -62,7 +65,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id uuid.UUID) (Trip, 
 
 func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]Trip, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at
+		SELECT `+tripColumnsT+`
 		FROM trips t
 		JOIN trip_members m ON m.trip_id = t.id
 		WHERE m.user_id = $1
@@ -223,7 +226,7 @@ func (r *PostgresRepository) SetPushedAt(ctx context.Context, memberID uuid.UUID
 
 func (r *PostgresRepository) ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at
+		SELECT `+tripColumnsT+`
 		FROM trips t
 		JOIN trip_members m ON m.trip_id = t.id
 		WHERE m.user_id = $1 AND m.pushed_at IS NOT NULL
@@ -243,4 +246,9 @@ func (r *PostgresRepository) ListPushedOverlapping(ctx context.Context, userID u
 		trips = append(trips, t)
 	}
 	return trips, rows.Err()
+}
+
+func (r *PostgresRepository) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {
+	_, err := r.db.Exec(ctx, `UPDATE trips SET confirmed_start = $2 WHERE id = $1`, tripID, start)
+	return err
 }
