@@ -25,6 +25,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 type markResponse struct {
 	Day    string `json:"day"` // "2026-12-05"
 	Status Status `json:"status"`
+	Reason string `json:"reason,omitempty"` // ส่วนตัว — endpoint นี้คืนเฉพาะของตัวเอง
 }
 
 func (h *Handler) listMine(c fiber.Ctx) error {
@@ -43,7 +44,7 @@ func (h *Handler) listMine(c fiber.Ctx) error {
 	}
 	resp := make([]markResponse, 0, len(marks))
 	for _, m := range marks {
-		resp = append(resp, markResponse{Day: m.Day.Format(time.DateOnly), Status: m.Status})
+		resp = append(resp, markResponse{Day: m.Day.Format(time.DateOnly), Status: m.Status, Reason: m.Reason})
 	}
 	return c.JSON(resp)
 }
@@ -60,7 +61,7 @@ func (h *Handler) setMarks(c fiber.Ctx) error {
 	switch {
 	case errors.Is(err, ErrInvalidStatus):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, err.Error())
-	case errors.Is(err, ErrInvalidDay):
+	case errors.Is(err, ErrInvalidDay), errors.Is(err, ErrInvalidReason):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	case err != nil:
 		return err

@@ -151,3 +151,32 @@ func TestSetMarks_204(t *testing.T) {
 		t.Errorf("saved user=%q set=%v clear=%v", repo.savedUser, repo.savedSet, repo.savedClear)
 	}
 }
+
+func TestListMine_ReturnsReason(t *testing.T) {
+	app, ck := newTestApp(t, &fakeRepo{listed: []Mark{
+		{Day: day("2026-12-05"), Status: StatusBusy, Reason: "workday"},
+		{Day: day("2026-12-06"), Status: StatusFree},
+	}})
+
+	res := do(t, app, http.MethodGet, "/availability?from=2026-12-01&to=2026-12-31", "", ck)
+
+	b, _ := io.ReadAll(res.Body)
+	want := `[{"day":"2026-12-05","status":"busy","reason":"workday"},{"day":"2026-12-06","status":"free"}]`
+	if string(b) != want {
+		t.Errorf("body = %s, want %s", b, want)
+	}
+}
+
+func TestSetMarks_InvalidReason_400(t *testing.T) {
+	repo := &fakeRepo{}
+	app, ck := newTestApp(t, repo)
+
+	res := do(t, app, http.MethodPut, "/availability", `[{"day":"2026-12-05","status":"free","reason":"x"}]`, ck)
+
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", res.StatusCode)
+	}
+	if repo.savedUser != "" {
+		t.Error("invalid reason must not reach the repo")
+	}
+}

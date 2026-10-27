@@ -3,6 +3,7 @@ package availability
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,6 +63,42 @@ func TestParseChanges(t *testing.T) {
 			}
 			if set[0].Day != time.Date(2026, 12, 5, 0, 0, 0, 0, time.UTC) || set[0].Status != StatusFree {
 				t.Errorf("set[0] = %+v, want 2026-12-05 free at UTC midnight", set[0])
+			}
+		})
+	}
+}
+
+func reason(s string) *string { return &s }
+
+func TestParseChanges_Reason(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     ChangeRequest
+		want    string
+		wantErr error
+	}{
+		{"busy with reason is trimmed", ChangeRequest{Day: "2026-12-05", Status: status(StatusBusy), Reason: reason(" workday ")}, "workday", nil},
+		{"busy without reason", ChangeRequest{Day: "2026-12-05", Status: status(StatusBusy)}, "", nil},
+		{"busy with blank reason", ChangeRequest{Day: "2026-12-05", Status: status(StatusBusy), Reason: reason("   ")}, "", nil},
+		{"reason over 60 runes", ChangeRequest{Day: "2026-12-05", Status: status(StatusBusy), Reason: reason(strings.Repeat("ก", 61))}, "", ErrInvalidReason},
+		{"reason on a free day", ChangeRequest{Day: "2026-12-05", Status: status(StatusFree), Reason: reason("x")}, "", ErrInvalidReason},
+		{"reason on a cleared day", ChangeRequest{Day: "2026-12-05", Status: nil, Reason: reason("x")}, "", ErrInvalidReason},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			set, _, err := ParseChanges([]ChangeRequest{tt.req})
+
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("err = %v, want %v", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(set) != 1 || set[0].Reason != tt.want {
+				t.Errorf("set = %+v, want reason %q", set, tt.want)
 			}
 		})
 	}
