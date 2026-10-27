@@ -19,7 +19,7 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: myapp
     ports:
-      - "5432:5432"   # เปิดให้ต่อจากเครื่องได้ (DBeaver, psql, go run นอก Docker)
+      - "5434:5432"   # เปิดให้ต่อจากเครื่องได้ (DBeaver, psql, go run นอก Docker) — 5434 เพราะ 5432 ชนกับ Postgres บนเครื่อง
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -41,7 +41,8 @@ services:
       APP_ENV: development
       HTTP_ADDR: ":8080"
       DATABASE_URL: postgres://app:app@db:5432/myapp?sslmode=disable
-      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      ALLOWED_ORIGINS: http://localhost:5173
+      JWT_SECRET: dev-only-secret-change-me-at-least-32-bytes
     ports:
       - "8080:8080"
     depends_on:

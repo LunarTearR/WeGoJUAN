@@ -20,8 +20,9 @@ type Routes interface {
 }
 
 type Mount struct {
-	Prefix string
-	Routes Routes
+	Prefix     string
+	Routes     Routes
+	Middleware []fiber.Handler // รันก่อนทุก route ใน prefix นี้ เช่น auth
 }
 
 type Pinger interface {
@@ -45,11 +46,17 @@ func New(cfg Config, logger *slog.Logger, db Pinger, mounts ...Mount) *fiber.App
 	app.Use(requestLogger(logger))
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: cfg.AllowedOrigins,
+		// ให้ browser ส่ง auth cookie ข้าม origin ได้ — fiber ห้ามใช้คู่กับ "*" (default ตอนไม่ได้ตั้ง origin)
+		AllowCredentials: len(cfg.AllowedOrigins) > 0,
 	}))
 
 	api := app.Group("/api/v1")
 	for _, m := range mounts {
-		m.Routes.RegisterRoutes(api.Group(m.Prefix))
+		g := api.Group(m.Prefix)
+		for _, mw := range m.Middleware {
+			g.Use(mw)
+		}
+		m.Routes.RegisterRoutes(g)
 	}
 
 	return app
