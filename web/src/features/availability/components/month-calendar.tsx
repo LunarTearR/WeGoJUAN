@@ -8,11 +8,12 @@ type MonthCalendarProps = {
   year: number
   month: number // 1-12
   onChangeMonth: (delta: number) => void
+  onSaved?: (day: string) => void // บันทึกวันไหนสำเร็จ (ใช้ชวน re-sync ทริป)
 }
 
 const weekdays = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 
-export function MonthCalendar({ year, month, onChangeMonth }: MonthCalendarProps) {
+export function MonthCalendar({ year, month, onChangeMonth, onSaved }: MonthCalendarProps) {
   const { from, to } = monthRange(year, month)
   const { data: marks, isPending, error } = useMyMarks(from, to)
   const saveMutation = useSaveMyMarks()
@@ -57,7 +58,7 @@ export function MonthCalendar({ year, month, onChangeMonth }: MonthCalendarProps
                 key={day}
                 type="button"
                 aria-label={`${day} ${statusLabel[status ?? 'unknown']}`}
-                onClick={() => saveMutation.mutate([{ day, status: nextStatus(status) }])}
+                onClick={() => saveMutation.mutate([{ day, status: nextStatus(status) }], { onSuccess: () => onSaved?.(day) })}
                 className={`aspect-square rounded border text-sm ${statusClass(status)}`}
               >
                 {i + 1}

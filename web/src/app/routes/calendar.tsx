@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MonthCalendar } from '@/features/availability/components/month-calendar'
+import { ResyncBanner } from '@/features/trip/components/resync-banner'
 
 export function CalendarRoute() {
   // อ่านวันที่ปัจจุบันครั้งเดียวตอน mount (เรียก new Date() ตรงๆ ตอน render ไม่ pure)
@@ -7,6 +8,13 @@ export function CalendarRoute() {
     const today = new Date()
     return { year: today.getFullYear(), month: today.getMonth() + 1 }
   })
+
+  // วันที่แก้ไปแล้วในรอบนี้ — ใช้ถามว่าทริปไหนควร re-sync
+  const [changedDays, setChangedDays] = useState<string[]>([])
+
+  function addChangedDay(day: string) {
+    setChangedDays((prev) => (prev.includes(day) ? prev : [...prev, day].sort()))
+  }
 
   function changeMonth(delta: number) {
     setShown(({ year, month }) => {
@@ -19,7 +27,8 @@ export function CalendarRoute() {
     <section className="space-y-4">
       <h1 className="text-xl font-semibold">ปฏิทินของฉัน</h1>
       <p className="text-sm text-gray-600">กดวันเพื่อสลับ ว่าง → ไม่ว่าง → ยังไม่ระบุ</p>
-      <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} />
+      <ResyncBanner days={changedDays} onDismiss={() => setChangedDays([])} />
+      <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} onSaved={addChangedDay} />
     </section>
   )
 }

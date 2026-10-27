@@ -220,3 +220,27 @@ func (r *PostgresRepository) SetPushedAt(ctx context.Context, memberID uuid.UUID
 	_, err := r.db.Exec(ctx, `UPDATE trip_members SET pushed_at = $2 WHERE id = $1`, memberID, at)
 	return err
 }
+
+func (r *PostgresRepository) ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at
+		FROM trips t
+		JOIN trip_members m ON m.trip_id = t.id
+		WHERE m.user_id = $1 AND m.pushed_at IS NOT NULL
+		  AND EXISTS (SELECT 1 FROM unnest($2::date[]) AS d WHERE d BETWEEN t.start_date AND t.end_date)
+		ORDER BY t.start_date, t.id`, userID, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	trips := []Trip{}
+	for rows.Next() {
+		t, err := scanTrip(rows)
+		if err != nil {
+			return nil, err
+		}
+		trips = append(trips, t)
+	}
+	return trips, rows.Err()
+}

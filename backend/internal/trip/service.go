@@ -41,6 +41,8 @@ type Repository interface {
 	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
 	SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error
 	SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error
+	// ListPushedOverlapping คืนทริปที่ User คนนี้เคย Push และ Date Range มีวันใดวันหนึ่งใน days
+	ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error)
 }
 
 // Calendar คือปฏิทินส่วนตัวของ User (availability.Service) — ทริปแตะได้เฉพาะตอนเจ้าของกดเอง (Push)
@@ -225,6 +227,14 @@ func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) (
 		ids[i] = m.ID
 	}
 	return SuggestWindows(ids, marks, from, t.EndDate, t.DurationDays), nil
+}
+
+// TripsToResync: แก้ปฏิทินส่วนตัววันไหนไป ทริปไหนที่เคย Push แล้วทับวันนั้นควรได้รับการชวน re-sync
+func (s *Service) TripsToResync(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
+	if len(days) == 0 {
+		return nil, nil
+	}
+	return s.repo.ListPushedOverlapping(ctx, userID, days)
 }
 
 // findMember หาสมาชิกจาก User ก่อน ถ้าไม่เจอแต่เครื่องนี้เคยเข้าทริปแบบ Guest ก็ใช้สมาชิก Guest นั้น

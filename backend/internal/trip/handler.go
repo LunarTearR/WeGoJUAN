@@ -31,6 +31,8 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	// สร้าง/ดูรายการทริปได้เฉพาะ User (ผู้จัดต้องมีบัญชี, Guest ไม่มีรายการทริป)
 	r.Post("/", requireAuth, h.create)
 	r.Get("/", requireAuth, h.listMine)
+	// route ตายตัวต้องมาก่อน /:id ไม่งั้น "resync" ถูกจับเป็น id
+	r.Get("/resync", requireAuth, h.resync) // ?days=2026-12-05,2026-12-06
 	r.Get("/:id", optionalAuth, h.getByID)
 	r.Get("/:id/marks", optionalAuth, h.marks)
 	r.Put("/:id/marks/me", optionalAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
@@ -251,6 +253,32 @@ func (h *Handler) suggestions(c fiber.Ctx) error {
 			Busy:      nonNil(w.Busy),
 			Unknown:   nonNil(w.Unknown),
 		})
+	}
+	return c.JSON(resp)
+}
+
+func (h *Handler) resync(c fiber.Ctx) error {
+	var days []time.Time
+	if q := c.Query("days"); q != "" {
+		parts := strings.Split(q, ",")
+		if len(parts) > availability.MaxChanges {
+			return fiber.NewError(fiber.StatusBadRequest, "too many days")
+		}
+		for _, p := range parts {
+			d, err := availability.ParseDay(p)
+			if err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, err.Error())
+			}
+			days = append(days, d)
+		}
+	}
+	trips, err := h.svc.TripsToResync(c, userIDFrom(c), days)
+	if err != nil {
+		return err
+	}
+	resp := make([]tripResponse, 0, len(trips))
+	for _, t := range trips {
+		resp = append(resp, newTripResponse(t))
 	}
 	return c.JSON(resp)
 }

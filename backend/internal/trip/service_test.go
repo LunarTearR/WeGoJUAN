@@ -39,6 +39,10 @@ type fakeRepo struct {
 
 	pushedAt map[uuid.UUID]time.Time
 
+	resyncTrips []Trip
+	resyncDays  []time.Time
+	resyncCalls int
+
 	cal *fakeCalendar // ปฏิทินส่วนตัวของ User (ใช้ตอน Push / ตอบรับวันที่ยืนยัน)
 }
 
@@ -95,6 +99,12 @@ func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, err
 
 func (r *fakeRepo) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error) {
 	return r.marks, nil
+}
+
+func (r *fakeRepo) ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
+	r.resyncCalls++
+	r.resyncDays = days
+	return r.resyncTrips, nil
 }
 
 func (r *fakeRepo) SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error {
