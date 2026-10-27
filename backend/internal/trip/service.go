@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	maxTitleRunes = 100
-	maxRangeDays  = 365
+	maxTitleRunes       = 100
+	maxRangeDays        = 365
+	maxDisplayNameRunes = 50
 )
 
 type Repository interface {
@@ -27,6 +29,9 @@ type Repository interface {
 	FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error)
 	// Members เรียงตามเวลาเข้าร่วม
 	Members(ctx context.Context, tripID uuid.UUID) ([]Member, error)
+	FindByInviteCode(ctx context.Context, code string) (Trip, error)
+	// AddUserMember: displayName "" = ใช้ users.display_name; ชื่อชนในทริป → ErrDisplayNameTaken
+	AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error)
 }
 
 type Service struct {
@@ -77,6 +82,54 @@ func (s *Service) Get(ctx context.Context, tripID uuid.UUID, v Viewer) (Detail, 
 		return Detail{}, err
 	}
 	return Detail{Trip: t, Members: members, Me: me}, nil
+}
+
+// Preview คืนข้อมูลทริปจากลิงก์เชิญ ให้คนที่ยังไม่ได้เข้าร่วมเห็นว่ากำลังจะเข้าทริปอะไร (ไม่มี Mark/สมาชิก)
+func (s *Service) Preview(ctx context.Context, code string, v Viewer) (Trip, bool, error) {
+	t, err := s.repo.FindByInviteCode(ctx, code)
+	if err != nil {
+		return Trip{}, false, err
+	}
+	_, err = s.repo.FindMember(ctx, t.ID, v)
+	switch {
+	case err == nil:
+		return t, true, nil
+	case errors.Is(err, ErrNotFound):
+		return t, false, nil
+	default:
+		return Trip{}, false, err
+	}
+}
+
+// JoinAsUser เข้าร่วมทริปทันทีไม่ต้องรออนุมัติ — เป็นสมาชิกอยู่แล้วก็คืนสมาชิกเดิม
+func (s *Service) JoinAsUser(ctx context.Context, code string, userID uuid.UUID, displayName string) (Trip, Member, error) {
+	displayName = strings.TrimSpace(displayName)
+	if displayName != "" {
+		if err := validateDisplayName(displayName); err != nil {
+			return Trip{}, Member{}, err
+		}
+	}
+
+	t, err := s.repo.FindByInviteCode(ctx, code)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	m, err := s.repo.FindMember(ctx, t.ID, Viewer{UserID: userID})
+	if err == nil {
+		return t, m, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return Trip{}, Member{}, err
+	}
+	m, err = s.repo.AddUserMember(ctx, t.ID, userID, displayName)
+	return t, m, err
+}
+
+func validateDisplayName(name string) error {
+	if n := utf8.RuneCountInString(name); n < 1 || n > maxDisplayNameRunes {
+		return ErrInvalidDisplayName
+	}
+	return nil
 }
 
 func validateNewTrip(in NewTrip, today time.Time) error {

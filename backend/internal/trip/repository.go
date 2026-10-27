@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -115,4 +116,27 @@ func (r *PostgresRepository) Members(ctx context.Context, tripID uuid.UUID) ([]M
 		members = append(members, m)
 	}
 	return members, rows.Err()
+}
+
+func (r *PostgresRepository) FindByInviteCode(ctx context.Context, code string) (Trip, error) {
+	return scanTrip(r.db.QueryRow(ctx, `SELECT `+tripColumns+` FROM trips WHERE invite_code = $1`, code))
+}
+
+func (r *PostgresRepository) AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error) {
+	m, err := scanMember(r.db.QueryRow(ctx, `
+		INSERT INTO trip_members (trip_id, user_id, display_name)
+		SELECT $1, id, COALESCE(NULLIF($3::text, ''), display_name) FROM users WHERE id = $2
+		RETURNING `+memberColumns, tripID, userID, displayName))
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "trip_members_trip_display_name":
+			return Member{}, ErrDisplayNameTaken
+		case "trip_members_trip_id_user_id_key":
+			// กดเข้าร่วมซ้อนกันสองครั้ง — อีก request เพิ่มไปแล้ว คืนสมาชิกคนนั้น
+			return r.FindMember(ctx, tripID, Viewer{UserID: userID})
+		}
+	}
+	return m, err
 }

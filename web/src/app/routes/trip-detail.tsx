@@ -1,5 +1,6 @@
 import { useParams } from 'react-router'
 import { useTrip } from '@/features/trip/api/get-trip'
+import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
 
 // หน้านี้คือจุดที่ประกอบหลายส่วนของทริปเข้าด้วยกัน (เหมือน wiring ใน main.go)
@@ -23,6 +24,7 @@ export function TripDetailRoute() {
           เลือกได้ {trip.start_date} ถึง {trip.end_date} · ไป {trip.duration_days} วัน
         </p>
       </div>
+      <InviteLinkBox code={trip.invite_code} />
       <div className="space-y-2">
         <h2 className="font-medium">สมาชิก</h2>
         <MemberList members={members} />

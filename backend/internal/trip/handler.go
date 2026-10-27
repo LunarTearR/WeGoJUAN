@@ -89,7 +89,7 @@ func (h *Handler) create(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "start_date and end_date must be YYYY-MM-DD")
 	}
 
-	t, err := h.svc.Create(c, h.userID(c), NewTrip{
+	t, err := h.svc.Create(c, userIDFrom(c), NewTrip{
 		Title:        req.Title,
 		StartDate:    start,
 		EndDate:      end,
@@ -105,7 +105,7 @@ func (h *Handler) create(c fiber.Ctx) error {
 }
 
 func (h *Handler) listMine(c fiber.Ctx) error {
-	trips, err := h.svc.ListMine(c, h.userID(c))
+	trips, err := h.svc.ListMine(c, userIDFrom(c))
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (h *Handler) getByID(c fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, ErrNotFound.Error())
 	}
 
-	d, err := h.svc.Get(c, tripID, h.viewer(c))
+	d, err := h.svc.Get(c, tripID, viewerFrom(c))
 	if errors.Is(err, ErrNotFound) {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	}
@@ -141,12 +141,12 @@ func (h *Handler) getByID(c fiber.Ctx) error {
 	})
 }
 
-// userID ของคนที่ login อยู่ — ใช้ได้เฉพาะ route ที่ผ่าน Require (token ที่เราออกเองจึง parse ได้เสมอ)
-func (h *Handler) userID(c fiber.Ctx) uuid.UUID {
+// userIDFrom คืน userID ของคนที่ login อยู่ หรือ uuid.Nil ถ้าไม่ได้ login (route ที่ใช้ Optional)
+func userIDFrom(c fiber.Ctx) uuid.UUID {
 	id, _ := uuid.Parse(auth.UserID(c))
 	return id
 }
 
-func (h *Handler) viewer(c fiber.Ctx) Viewer {
-	return Viewer{UserID: h.userID(c)}
+func viewerFrom(c fiber.Ctx) Viewer {
+	return Viewer{UserID: userIDFrom(c)}
 }

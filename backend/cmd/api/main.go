@@ -66,6 +66,7 @@ func run() error {
 		server.Mount{Prefix: "/users", Routes: user.NewHandler(userSvc, authManager)}, // auth ราย route เพราะ register/login ต้องเปิด
 		server.Mount{Prefix: "/availability", Routes: availability.NewHandler(availabilitySvc), Middleware: requireAuth},
 		server.Mount{Prefix: "/trips", Routes: trip.NewHandler(tripSvc, authManager)}, // auth ราย route ใน handler
+		server.Mount{Prefix: "/invites", Routes: trip.NewInviteHandler(tripSvc, authManager)},
 	)
 
 	// ---------- 5. Start & graceful shutdown ----------

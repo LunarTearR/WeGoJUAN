@@ -67,6 +67,17 @@ func (m *Manager) Require() fiber.Handler {
 	}
 }
 
+// Optional เหมือน Require แต่ไม่ตอบ 401 — ไม่มี cookie หรือ token เสียก็ผ่านไปโดย UserID(c) == ""
+// ใช้กับ route ที่ทั้ง User และ Guest เข้าได้
+func (m *Manager) Optional() fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if userID, err := m.verify(c.Cookies(CookieName)); err == nil {
+			c.Locals(userIDKey{}, userID)
+		}
+		return c.Next()
+	}
+}
+
 // UserID คืน userID ของคนที่ login อยู่ ใช้ได้เฉพาะ route ที่ผ่าน Require แล้ว
 func UserID(c fiber.Ctx) string {
 	id, _ := c.Locals(userIDKey{}).(string)

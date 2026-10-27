@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	ErrNotFound    = errors.New("trip not found")
-	ErrInvalidTrip = errors.New("invalid trip") // ห่อด้วยเหตุผล: fmt.Errorf("%w: ...", ErrInvalidTrip)
+	ErrNotFound           = errors.New("trip not found")
+	ErrInvalidTrip        = errors.New("invalid trip") // ห่อด้วยเหตุผล: fmt.Errorf("%w: ...", ErrInvalidTrip)
+	ErrDisplayNameTaken   = errors.New("display name already taken in this trip")
+	ErrInvalidDisplayName = errors.New("display name must be 1-50 characters")
 )
 
 type Trip struct {

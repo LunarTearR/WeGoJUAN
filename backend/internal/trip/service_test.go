@@ -20,6 +20,16 @@ type fakeRepo struct {
 	member    Member
 	memberErr error
 	members   []Member
+
+	byCode     Trip
+	byCodeErr  error
+	addErr     error
+	addedUsers []addedUser
+}
+
+type addedUser struct {
+	userID      uuid.UUID
+	displayName string
 }
 
 func (r *fakeRepo) Create(ctx context.Context, t Trip) (Trip, error) {
@@ -42,6 +52,18 @@ func (r *fakeRepo) FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (
 
 func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, error) {
 	return r.members, nil
+}
+
+func (r *fakeRepo) FindByInviteCode(ctx context.Context, code string) (Trip, error) {
+	return r.byCode, r.byCodeErr
+}
+
+func (r *fakeRepo) AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error) {
+	if r.addErr != nil {
+		return Member{}, r.addErr
+	}
+	r.addedUsers = append(r.addedUsers, addedUser{userID, displayName})
+	return Member{ID: uuid.New(), TripID: tripID, UserID: userID, DisplayName: displayName}, nil
 }
 
 var organizerID = uuid.MustParse("6f1c2c1e-0d5e-4a43-9a51-0c7d0f6f5b11")
@@ -189,5 +211,89 @@ func TestGet_Member_ReturnsTripMembersAndMe(t *testing.T) {
 	}
 	if d.Trip.Title != "Chiang Mai" || len(d.Members) != 1 || d.Me.ID != me.ID {
 		t.Errorf("detail = %+v", d)
+	}
+}
+
+var natID = uuid.MustParse("0a7c0e55-6a7e-4a33-9d0e-2b1b7d4c9a21")
+
+func TestPreview_UnknownCode_NotFound(t *testing.T) {
+	repo := &fakeRepo{byCodeErr: ErrNotFound}
+
+	_, _, err := newTestService(repo, defaultNow).Preview(context.Background(), "nope", Viewer{})
+
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestPreview_IsMember(t *testing.T) {
+	tests := []struct {
+		name      string
+		memberErr error
+		want      bool
+	}{
+		{"member", nil, true},
+		{"not a member", ErrNotFound, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: tt.memberErr}
+
+			_, isMember, err := newTestService(repo, defaultNow).Preview(context.Background(), "code", Viewer{UserID: natID})
+
+			if err != nil || isMember != tt.want {
+				t.Errorf("isMember = %v err = %v, want %v nil", isMember, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestJoinAsUser_AlreadyMember_ReturnsExisting(t *testing.T) {
+	existing := Member{ID: uuid.New(), UserID: natID, DisplayName: "nat"}
+	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, member: existing}
+
+	_, m, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, "")
+
+	if err != nil || m.ID != existing.ID {
+		t.Fatalf("member = %+v err = %v, want existing", m, err)
+	}
+	if len(repo.addedUsers) != 0 {
+		t.Errorf("already a Member must not insert again, got %v", repo.addedUsers)
+	}
+}
+
+func TestJoinAsUser_NewMember_Added(t *testing.T) {
+	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: ErrNotFound}
+
+	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, "  Nat  ")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.addedUsers) != 1 || repo.addedUsers[0] != (addedUser{natID, "Nat"}) {
+		t.Errorf("added = %+v, want [{nat Nat}]", repo.addedUsers)
+	}
+}
+
+func TestJoinAsUser_NameTaken(t *testing.T) {
+	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: ErrNotFound, addErr: ErrDisplayNameTaken}
+
+	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, "ploy")
+
+	if !errors.Is(err, ErrDisplayNameTaken) {
+		t.Fatalf("err = %v, want ErrDisplayNameTaken", err)
+	}
+}
+
+func TestJoinAsUser_DisplayNameTooLong(t *testing.T) {
+	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: ErrNotFound}
+
+	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, strings.Repeat("ก", 51))
+
+	if !errors.Is(err, ErrInvalidDisplayName) {
+		t.Fatalf("err = %v, want ErrInvalidDisplayName", err)
+	}
+	if len(repo.addedUsers) != 0 {
+		t.Error("invalid name must not reach the repo")
 	}
 }

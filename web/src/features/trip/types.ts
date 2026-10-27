@@ -31,3 +31,18 @@ export type NewTripInput = {
   end_date: ISODate
   duration_days: number
 }
+
+// ตรงกับ inviteResponse ฝั่ง Go — ตั้งใจไม่มีสมาชิกหรือ Mark
+export type Invite = {
+  trip_id: string
+  title: string
+  start_date: ISODate
+  end_date: ISODate
+  duration_days: number
+  is_member: boolean
+}
+
+export type JoinResult = {
+  trip_id: string
+  member: Member
+}
