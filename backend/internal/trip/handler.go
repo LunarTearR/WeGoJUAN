@@ -24,12 +24,15 @@ func NewHandler(svc *Service, auth *auth.Manager) *Handler {
 
 func (h *Handler) RegisterRoutes(r fiber.Router) {
 	requireAuth := h.auth.Require()
+	// User หรือ Guest — service เช็คเองว่าเป็นสมาชิกไหม (คนนอกได้ 404)
+	optionalAuth := h.auth.Optional()
 
+	// สร้าง/ดูรายการทริปได้เฉพาะ User (ผู้จัดต้องมีบัญชี, Guest ไม่มีรายการทริป)
 	r.Post("/", requireAuth, h.create)
 	r.Get("/", requireAuth, h.listMine)
-	r.Get("/:id", requireAuth, h.getByID)
-	r.Get("/:id/marks", requireAuth, h.marks)
-	r.Put("/:id/marks/me", requireAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
+	r.Get("/:id", optionalAuth, h.getByID)
+	r.Get("/:id/marks", optionalAuth, h.marks)
+	r.Put("/:id/marks/me", optionalAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
 }
 
 type createTripRequest struct {
@@ -220,5 +223,9 @@ func userIDFrom(c fiber.Ctx) uuid.UUID {
 }
 
 func viewerFrom(c fiber.Ctx) Viewer {
-	return Viewer{UserID: userIDFrom(c)}
+	v := Viewer{UserID: userIDFrom(c)}
+	if t := auth.GuestToken(c); t != "" {
+		v.GuestTokenHash = auth.HashGuestToken(t)
+	}
+	return v
 }

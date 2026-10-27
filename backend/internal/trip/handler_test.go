@@ -26,7 +26,9 @@ func newTestApp(t *testing.T, repo *fakeRepo) *fiber.App {
 	app := fiber.New()
 	// route ช่วย test: ออก session cookie ให้ userID ใดๆ โดยไม่ต้องผ่าน package user
 	app.Post("/test-login/:id", func(c fiber.Ctx) error { return m.Login(c, c.Params("id")) })
-	NewHandler(newTestService(repo, defaultNow), m).RegisterRoutes(app.Group("/trips"))
+	svc := newTestService(repo, defaultNow)
+	NewHandler(svc, m).RegisterRoutes(app.Group("/trips"))
+	NewInviteHandler(svc, m).RegisterRoutes(app.Group("/invites"))
 	return app
 }
 
@@ -87,7 +89,6 @@ func TestTripRoutes_RequireLogin(t *testing.T) {
 	tests := []struct{ method, path, body string }{
 		{http.MethodPost, "/trips", validTripBody},
 		{http.MethodGet, "/trips", ""},
-		{http.MethodGet, "/trips/" + uuid.NewString(), ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {

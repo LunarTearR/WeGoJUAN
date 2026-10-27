@@ -32,9 +32,15 @@ export function JoinRoute() {
       ) : me ? (
         <JoinTripForm code={code} />
       ) : (
-        <Link to={`/login?next=${encodeURIComponent(`/join/${code}`)}`} className="block rounded bg-gray-900 px-3 py-2 text-center text-white">
-          เข้าสู่ระบบเพื่อเข้าร่วม
-        </Link>
+        <div className="space-y-4">
+          <JoinTripForm code={code} asGuest />
+          <p className="text-center text-sm">
+            มีบัญชีแล้ว?{' '}
+            <Link to={`/login?next=${encodeURIComponent(`/join/${code}`)}`} className="underline">
+              เข้าสู่ระบบเพื่อเข้าร่วม
+            </Link>
+          </p>
+        </div>
       )}
     </section>
   )

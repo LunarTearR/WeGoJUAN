@@ -34,6 +34,8 @@ type Repository interface {
 	FindByInviteCode(ctx context.Context, code string) (Trip, error)
 	// AddUserMember: displayName "" = ใช้ users.display_name; ชื่อชนในทริป → ErrDisplayNameTaken
 	AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error)
+	// AddGuestMember: ชื่อชนในทริป → ErrDisplayNameTaken
+	AddGuestMember(ctx context.Context, tripID uuid.UUID, guestTokenHash, displayName string) (Member, error)
 	// ListMarks คืน member ID → Mark ของคนนั้น เฉพาะวันใน Date Range
 	ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error)
 	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
@@ -163,6 +165,28 @@ func (s *Service) SetMyMarks(ctx context.Context, tripID uuid.UUID, v Viewer, se
 		}
 	}
 	return s.repo.SaveMarks(ctx, me.ID, set, clear)
+}
+
+// JoinAsGuest เข้าร่วมโดยไม่มีบัญชี ต้องตั้งชื่อเสมอ — เครื่องเดิมเข้าซ้ำได้สมาชิกคนเดิม
+func (s *Service) JoinAsGuest(ctx context.Context, code, guestTokenHash, displayName string) (Trip, Member, error) {
+	displayName = strings.TrimSpace(displayName)
+	if err := validateDisplayName(displayName); err != nil {
+		return Trip{}, Member{}, err
+	}
+
+	t, err := s.repo.FindByInviteCode(ctx, code)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	m, err := s.repo.FindMember(ctx, t.ID, Viewer{GuestTokenHash: guestTokenHash})
+	if err == nil {
+		return t, m, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return Trip{}, Member{}, err
+	}
+	m, err = s.repo.AddGuestMember(ctx, t.ID, guestTokenHash, displayName)
+	return t, m, err
 }
 
 func validateDisplayName(name string) error {

@@ -87,19 +87,28 @@ const memberColumns = `id, trip_id, user_id, display_name, joined_at`
 
 func scanMember(row pgx.Row) (Member, error) {
 	var m Member
-	err := row.Scan(&m.ID, &m.TripID, &m.UserID, &m.DisplayName, &m.JoinedAt)
+	var userID *uuid.UUID // NULL = Guest
+	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Member{}, ErrNotFound
+	}
+	if userID != nil {
+		m.UserID = *userID
 	}
 	return m, err
 }
 
 func (r *PostgresRepository) FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error) {
-	if v.UserID == uuid.Nil {
+	switch {
+	case v.UserID != uuid.Nil:
+		return scanMember(r.db.QueryRow(ctx,
+			`SELECT `+memberColumns+` FROM trip_members WHERE trip_id = $1 AND user_id = $2`, tripID, v.UserID))
+	case v.GuestTokenHash != "":
+		return scanMember(r.db.QueryRow(ctx,
+			`SELECT `+memberColumns+` FROM trip_members WHERE trip_id = $1 AND guest_token_hash = $2`, tripID, v.GuestTokenHash))
+	default:
 		return Member{}, ErrNotFound
 	}
-	return scanMember(r.db.QueryRow(ctx,
-		`SELECT `+memberColumns+` FROM trip_members WHERE trip_id = $1 AND user_id = $2`, tripID, v.UserID))
 }
 
 func (r *PostgresRepository) Members(ctx context.Context, tripID uuid.UUID) ([]Member, error) {
@@ -186,4 +195,23 @@ func (r *PostgresRepository) SaveMarks(ctx context.Context, memberID uuid.UUID, 
 		_, err := tx.Exec(ctx, `DELETE FROM trip_marks WHERE member_id = $1 AND day = ANY($2)`, memberID, clear)
 		return err
 	})
+}
+
+func (r *PostgresRepository) AddGuestMember(ctx context.Context, tripID uuid.UUID, guestTokenHash, displayName string) (Member, error) {
+	m, err := scanMember(r.db.QueryRow(ctx, `
+		INSERT INTO trip_members (trip_id, guest_token_hash, display_name)
+		VALUES ($1, $2, $3)
+		RETURNING `+memberColumns, tripID, guestTokenHash, displayName))
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		switch pgErr.ConstraintName {
+		case "trip_members_trip_display_name":
+			return Member{}, ErrDisplayNameTaken
+		case "trip_members_trip_guest":
+			// เครื่องเดียวกันกดเข้าร่วมซ้อนกัน — คืนสมาชิกที่เพิ่มไปแล้ว
+			return r.FindMember(ctx, tripID, Viewer{GuestTokenHash: guestTokenHash})
+		}
+	}
+	return m, err
 }

@@ -1,4 +1,5 @@
 import { useParams } from 'react-router'
+import { ApiError } from '@/lib/api-client'
 import { useTrip } from '@/features/trip/api/get-trip'
 import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
@@ -11,6 +12,9 @@ export function TripDetailRoute() {
 
   if (isPending) {
     return <p className="text-gray-500">กำลังโหลดทริป…</p>
+  }
+  if (error instanceof ApiError && error.status === 404) {
+    return <p className="text-red-700">ไม่พบทริปนี้ หรือคุณยังไม่ได้เป็นสมาชิก</p>
   }
   if (error) {
     return <p className="text-red-700">โหลดทริปไม่สำเร็จ: {error.message}</p>

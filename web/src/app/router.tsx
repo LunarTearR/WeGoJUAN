@@ -22,9 +22,10 @@ export const router = createBrowserRouter([
           { index: true, element: <CalendarRoute /> },
           { path: 'trips', element: <TripsRoute /> },
           { path: 'trips/new', element: <TripNewRoute /> },
-          { path: 'trips/:tripId', element: <TripDetailRoute /> },
         ],
       },
+      // Guest เปิดหน้าทริปได้โดยไม่ login — server ตอบ 404 ถ้าไม่ได้เป็นสมาชิก
+      { path: 'trips/:tripId', element: <TripDetailRoute /> },
       { path: 'login', element: <LoginRoute /> },
       { path: 'register', element: <RegisterRoute /> },
       { path: 'join/:code', element: <JoinRoute /> },

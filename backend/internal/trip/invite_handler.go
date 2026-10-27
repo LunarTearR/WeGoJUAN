@@ -22,7 +22,8 @@ func NewInviteHandler(svc *Service, auth *auth.Manager) *InviteHandler {
 
 func (h *InviteHandler) RegisterRoutes(r fiber.Router) {
 	r.Get("/:code", h.auth.Optional(), h.preview)
-	r.Post("/:code/join", h.auth.Require(), h.join)
+	// ไม่ได้ login = เข้าร่วมแบบ Guest
+	r.Post("/:code/join", h.auth.Optional(), h.join)
 }
 
 // inviteResponse ตั้งใจไม่มีสมาชิกหรือ Mark — คนนอกเห็นแค่ว่าเป็นทริปอะไร
@@ -36,7 +37,7 @@ type inviteResponse struct {
 }
 
 type joinRequest struct {
-	DisplayName string `json:"display_name"` // ว่างได้ = ใช้ชื่อบัญชี
+	DisplayName string `json:"display_name"` // User: ว่างได้ = ใช้ชื่อบัญชี, Guest: ต้องมี
 }
 
 type joinResponse struct {
@@ -70,7 +71,7 @@ func (h *InviteHandler) join(c fiber.Ctx) error {
 		}
 	}
 
-	t, m, err := h.svc.JoinAsUser(c, c.Params("code"), userIDFrom(c), req.DisplayName)
+	t, m, err := h.joinAsUserOrGuest(c, req.DisplayName)
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return fiber.NewError(fiber.StatusNotFound, "invite link not found")
@@ -82,4 +83,15 @@ func (h *InviteHandler) join(c fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(joinResponse{TripID: t.ID, Member: newMemberResponse(t, m)})
+}
+
+func (h *InviteHandler) joinAsUserOrGuest(c fiber.Ctx, displayName string) (Trip, Member, error) {
+	if userID := userIDFrom(c); userID != uuid.Nil {
+		return h.svc.JoinAsUser(c, c.Params("code"), userID, displayName)
+	}
+	token, err := h.auth.EnsureGuestToken(c)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	return h.svc.JoinAsGuest(c, c.Params("code"), auth.HashGuestToken(token), displayName)
 }

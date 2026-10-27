@@ -28,11 +28,19 @@ type fakeRepo struct {
 	addErr     error
 	addedUsers []addedUser
 
+	guests      map[string]Member // guest token hash → Member
+	addedGuests []addedGuest
+
 	marks      map[uuid.UUID][]availability.Mark
 	saveCalls  int
 	savedFor   uuid.UUID
 	savedSet   []availability.Mark
 	savedClear []time.Time
+}
+
+type addedGuest struct {
+	tokenHash   string
+	displayName string
 }
 
 type addedUser struct {
@@ -55,7 +63,26 @@ func (r *fakeRepo) ListByUser(ctx context.Context, userID uuid.UUID) ([]Trip, er
 }
 
 func (r *fakeRepo) FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error) {
+	if v.UserID == uuid.Nil {
+		if m, ok := r.guests[v.GuestTokenHash]; ok && v.GuestTokenHash != "" {
+			return m, nil
+		}
+		return Member{}, ErrNotFound
+	}
 	return r.member, r.memberErr
+}
+
+func (r *fakeRepo) AddGuestMember(ctx context.Context, tripID uuid.UUID, guestTokenHash, displayName string) (Member, error) {
+	if r.addErr != nil {
+		return Member{}, r.addErr
+	}
+	m := Member{ID: uuid.New(), TripID: tripID, DisplayName: displayName}
+	if r.guests == nil {
+		r.guests = map[string]Member{}
+	}
+	r.guests[guestTokenHash] = m
+	r.addedGuests = append(r.addedGuests, addedGuest{guestTokenHash, displayName})
+	return m, nil
 }
 
 func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, error) {
@@ -377,5 +404,63 @@ func TestMarks_NonMember_NotFound(t *testing.T) {
 
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+const bankHash = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8"
+
+func TestJoinAsGuest_NameRequired(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.byCode = repo.trip
+
+	_, _, err := newTestService(repo, defaultNow).JoinAsGuest(context.Background(), "code", bankHash, "   ")
+
+	if !errors.Is(err, ErrInvalidDisplayName) {
+		t.Fatalf("err = %v, want ErrInvalidDisplayName", err)
+	}
+	if len(repo.addedGuests) != 0 {
+		t.Error("nameless Guest must not be added")
+	}
+}
+
+func TestJoinAsGuest_SameDevice_ReturnsExisting(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.byCode = repo.trip
+	existing := Member{ID: uuid.New(), DisplayName: "Bank"}
+	repo.guests = map[string]Member{bankHash: existing}
+
+	_, m, err := newTestService(repo, defaultNow).JoinAsGuest(context.Background(), "code", bankHash, "Bank again")
+
+	if err != nil || m.ID != existing.ID {
+		t.Fatalf("member = %+v err = %v, want existing", m, err)
+	}
+	if len(repo.addedGuests) != 0 {
+		t.Error("same device must not join twice")
+	}
+}
+
+func TestJoinAsGuest_TrimsAndAdds(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.byCode = repo.trip
+
+	_, m, err := newTestService(repo, defaultNow).JoinAsGuest(context.Background(), "code", bankHash, " Bank ")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.addedGuests) != 1 || repo.addedGuests[0] != (addedGuest{bankHash, "Bank"}) || !m.IsGuest() {
+		t.Errorf("added = %+v member = %+v", repo.addedGuests, m)
+	}
+}
+
+func TestGet_GuestViewer(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	guest := Member{ID: uuid.New(), DisplayName: "Bank"}
+	repo.guests = map[string]Member{bankHash: guest}
+
+	d, err := newTestService(repo, defaultNow).Get(context.Background(), repo.trip.ID, Viewer{GuestTokenHash: bankHash})
+
+	if err != nil || d.Me.ID != guest.ID {
+		t.Fatalf("me = %+v err = %v, want the Guest", d.Me, err)
 	}
 }

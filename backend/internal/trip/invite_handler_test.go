@@ -6,24 +6,13 @@ import (
 	"net/http"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-
-	"WeGoJUAN-backend/internal/auth"
 )
 
 func newInviteTestApp(t *testing.T, repo *fakeRepo) *fiber.App {
-	t.Helper()
-	m, err := auth.NewManager("test-secret-that-is-at-least-32-bytes!!", time.Hour, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	app := fiber.New()
-	app.Post("/test-login/:id", func(c fiber.Ctx) error { return m.Login(c, c.Params("id")) })
-	NewInviteHandler(newTestService(repo, defaultNow), m).RegisterRoutes(app.Group("/invites"))
-	return app
+	return newTestApp(t, repo)
 }
 
 func inviteRepo(t *testing.T) *fakeRepo {
@@ -34,16 +23,6 @@ func inviteRepo(t *testing.T) *fakeRepo {
 			InviteCode: "code123",
 		},
 		memberErr: ErrNotFound,
-	}
-}
-
-func TestJoin_RequiresLogin_401(t *testing.T) {
-	app := newInviteTestApp(t, inviteRepo(t))
-
-	res := request(t, app, http.MethodPost, "/invites/code123/join", "")
-
-	if res.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401", res.StatusCode)
 	}
 }
 
