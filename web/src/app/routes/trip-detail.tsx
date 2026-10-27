@@ -13,7 +13,7 @@ import { PushPanel } from '@/features/trip/components/push-panel'
 import { RepushBanner } from '@/features/trip/components/repush-banner'
 import { ResyncBanner } from '@/features/trip/components/resync-banner'
 import { SuggestionList } from '@/features/trip/components/suggestion-list'
-import { TripMarksGrid } from '@/features/trip/components/trip-marks-grid'
+import { TripCalendar } from '@/features/trip/components/trip-calendar'
 
 // key ตาม tripId: ไปทริปอื่นจากหน้านี้ (เช่นลิงก์ re-sync) ต้องได้ state ใหม่ทั้งหน้า
 // ไม่งั้นแผง Push / ฟอร์มแก้วัน / แบนเนอร์ของทริปเดิมตามไปด้วย
@@ -86,7 +86,7 @@ function TripDetail() {
               อัปเดตจากปฏิทินของฉัน
             </button>
           ))}
-        <TripMarksGrid trip={trip} members={members} me={me} />
+        <TripCalendar trip={trip} members={members} me={me} />
       </div>
       {!me.is_organizer && (
         <div className="border-t border-gray-200 pt-4">
