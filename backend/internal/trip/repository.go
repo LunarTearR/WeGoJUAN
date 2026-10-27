@@ -83,12 +83,12 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID) (
 	return trips, rows.Err()
 }
 
-const memberColumns = `id, trip_id, user_id, display_name, joined_at`
+const memberColumns = `id, trip_id, user_id, display_name, joined_at, pushed_at`
 
 func scanMember(row pgx.Row) (Member, error) {
 	var m Member
 	var userID *uuid.UUID // NULL = Guest
-	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt)
+	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt, &m.PushedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Member{}, ErrNotFound
 	}
@@ -214,4 +214,9 @@ func (r *PostgresRepository) AddGuestMember(ctx context.Context, tripID uuid.UUI
 		}
 	}
 	return m, err
+}
+
+func (r *PostgresRepository) SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error {
+	_, err := r.db.Exec(ctx, `UPDATE trip_members SET pushed_at = $2 WHERE id = $1`, memberID, at)
+	return err
 }

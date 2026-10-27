@@ -40,15 +40,24 @@ type Repository interface {
 	ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error)
 	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
 	SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error
+	SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error
+}
+
+// Calendar คือปฏิทินส่วนตัวของ User (availability.Service) — ทริปแตะได้เฉพาะตอนเจ้าของกดเอง (Push)
+// ไม่เคยอ่านสดๆ มาคำนวณ ดู docs/adr/0001
+type Calendar interface {
+	ListByUser(ctx context.Context, userID string, from, to time.Time) ([]availability.Mark, error)
+	SetMarks(ctx context.Context, userID string, set []availability.Mark, clear []time.Time) error
 }
 
 type Service struct {
 	repo Repository
+	cal  Calendar
 	now  func() time.Time // test เปลี่ยนเพื่อกำหนด "วันนี้"
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo, now: time.Now}
+func NewService(repo Repository, cal Calendar) *Service {
+	return &Service{repo: repo, cal: cal, now: time.Now}
 }
 
 func (s *Service) Create(ctx context.Context, organizerID uuid.UUID, in NewTrip) (Trip, error) {

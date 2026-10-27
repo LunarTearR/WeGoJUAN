@@ -1,15 +1,20 @@
-import { useParams } from 'react-router'
+import { useState } from 'react'
+import { useParams, useSearchParams } from 'react-router'
 import { ApiError } from '@/lib/api-client'
 import { useTrip } from '@/features/trip/api/get-trip'
 import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
+import { PushPanel } from '@/features/trip/components/push-panel'
 import { SuggestionList } from '@/features/trip/components/suggestion-list'
 import { TripMarksGrid } from '@/features/trip/components/trip-marks-grid'
 
 // หน้านี้คือจุดที่ประกอบหลายส่วนของทริปเข้าด้วยกัน (เหมือน wiring ใน main.go)
 export function TripDetailRoute() {
   const { tripId = '' } = useParams()
+  const [searchParams] = useSearchParams()
   const { data, isPending, error } = useTrip(tripId)
+  // ?push=1 = มาจากลิงก์ให้ re-sync → เปิดแผง Push ทันที
+  const [pushOpen, setPushOpen] = useState(searchParams.get('push') === '1')
 
   if (isPending) {
     return <p className="text-gray-500">กำลังโหลดทริป…</p>
@@ -41,6 +46,14 @@ export function TripDetailRoute() {
       </div>
       <div className="space-y-2">
         <h2 className="font-medium">วันว่างของสมาชิก</h2>
+        {!me.is_guest &&
+          (pushOpen ? (
+            <PushPanel tripId={trip.id} onDone={() => setPushOpen(false)} />
+          ) : (
+            <button type="button" onClick={() => setPushOpen(true)} className="rounded border border-gray-300 px-3 py-1 text-sm">
+              อัปเดตจากปฏิทินของฉัน
+            </button>
+          ))}
         <TripMarksGrid trip={trip} members={members} me={me} />
       </div>
     </section>

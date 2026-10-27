@@ -36,6 +36,10 @@ type fakeRepo struct {
 	savedFor   uuid.UUID
 	savedSet   []availability.Mark
 	savedClear []time.Time
+
+	pushedAt map[uuid.UUID]time.Time
+
+	cal *fakeCalendar // ปฏิทินส่วนตัวของ User (ใช้ตอน Push / ตอบรับวันที่ยืนยัน)
 }
 
 type addedGuest struct {
@@ -93,6 +97,42 @@ func (r *fakeRepo) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UU
 	return r.marks, nil
 }
 
+func (r *fakeRepo) SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error {
+	if r.pushedAt == nil {
+		r.pushedAt = map[uuid.UUID]time.Time{}
+	}
+	r.pushedAt[memberID] = at
+	return nil
+}
+
+// fakeCalendar แทน availability.Service — เก็บ Mark ของ User คนเดียว
+type fakeCalendar struct {
+	marks []availability.Mark
+
+	listedFor  string
+	setFor     string
+	setMarks   []availability.Mark
+	clearMarks []time.Time
+	setCalls   int
+}
+
+func (c *fakeCalendar) ListByUser(ctx context.Context, userID string, from, to time.Time) ([]availability.Mark, error) {
+	c.listedFor = userID
+	var out []availability.Mark
+	for _, m := range c.marks {
+		if !m.Day.Before(from) && !m.Day.After(to) {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+func (c *fakeCalendar) SetMarks(ctx context.Context, userID string, set []availability.Mark, clear []time.Time) error {
+	c.setCalls++
+	c.setFor, c.setMarks, c.clearMarks = userID, set, clear
+	return nil
+}
+
 func (r *fakeRepo) SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error {
 	r.saveCalls++
 	r.savedFor, r.savedSet, r.savedClear = memberID, set, clear
@@ -126,7 +166,10 @@ func mustDay(t *testing.T, s string) time.Time {
 }
 
 func newTestService(repo *fakeRepo, now time.Time) *Service {
-	s := NewService(repo)
+	if repo.cal == nil {
+		repo.cal = &fakeCalendar{}
+	}
+	s := NewService(repo, repo.cal)
 	s.now = func() time.Time { return now }
 	return s
 }

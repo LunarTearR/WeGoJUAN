@@ -2,7 +2,6 @@ package trip
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -67,8 +66,8 @@ func (h *InviteHandler) preview(c fiber.Ctx) error {
 }
 
 func (h *InviteHandler) join(c fiber.Ctx) error {
-	if !strings.HasPrefix(c.Get(fiber.HeaderContentType), fiber.MIMEApplicationJSON) {
-		return fiber.NewError(fiber.StatusUnsupportedMediaType, "request body must be JSON")
+	if err := requireJSON(c); err != nil {
+		return err
 	}
 	var req joinRequest
 	if err := c.Bind().Body(&req); err != nil {

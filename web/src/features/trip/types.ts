@@ -63,3 +63,10 @@ export type Suggestion = {
   busy: string[]
   unknown: string[]
 }
+
+// ตรงกับ pushDayResponse ฝั่ง Go — เฉพาะวันที่ทริปกับปฏิทินส่วนตัวไม่ตรงกัน (null = ยังไม่ระบุ)
+export type PushDay = {
+  day: ISODate
+  trip_status: Status | null
+  calendar_status: Status | null
+}

@@ -14,6 +14,7 @@ var (
 	ErrDisplayNameTaken   = errors.New("display name already taken in this trip")
 	ErrInvalidDisplayName = errors.New("display name must be 1-50 characters")
 	ErrDayOutOfRange      = errors.New("day is outside the trip's date range")
+	ErrGuestNotAllowed    = errors.New("only signed-up users can do this")
 )
 
 type Trip struct {
@@ -40,6 +41,7 @@ type Member struct {
 	UserID      uuid.UUID // uuid.Nil = Guest
 	DisplayName string
 	JoinedAt    time.Time
+	PushedAt    *time.Time // Push ครั้งล่าสุด (nil = ยังไม่เคย)
 }
 
 func (m Member) IsGuest() bool {

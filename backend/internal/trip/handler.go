@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -34,6 +35,8 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Get("/:id/marks", optionalAuth, h.marks)
 	r.Put("/:id/marks/me", optionalAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
 	r.Get("/:id/suggestions", optionalAuth, h.suggestions)
+	r.Get("/:id/push-preview", optionalAuth, h.pushPreview)
+	r.Post("/:id/push", optionalAuth, h.push)
 }
 
 type createTripRequest struct {
@@ -78,6 +81,16 @@ type windowResponse struct {
 	Available []uuid.UUID `json:"available"` // member ID
 	Busy      []uuid.UUID `json:"busy"`
 	Unknown   []uuid.UUID `json:"unknown"`
+}
+
+type pushDayResponse struct {
+	Day            string               `json:"day"`
+	TripStatus     *availability.Status `json:"trip_status"` // null = ยังไม่ระบุ
+	CalendarStatus *availability.Status `json:"calendar_status"`
+}
+
+type pushRequest struct {
+	Days []string `json:"days"` // วันที่เลือกให้ทับด้วยปฏิทินส่วนตัว
 }
 
 func newTripResponse(t Trip) tripResponse {
@@ -240,6 +253,70 @@ func (h *Handler) suggestions(c fiber.Ctx) error {
 		})
 	}
 	return c.JSON(resp)
+}
+
+func (h *Handler) pushPreview(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	days, err := h.svc.PushPreview(c, tripID, viewerFrom(c))
+	if err != nil {
+		return tripError(err)
+	}
+	resp := make([]pushDayResponse, 0, len(days))
+	for _, d := range days {
+		resp = append(resp, pushDayResponse{Day: d.Day.Format(time.DateOnly), TripStatus: d.Trip, CalendarStatus: d.Calendar})
+	}
+	return c.JSON(resp)
+}
+
+func (h *Handler) push(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := requireJSON(c); err != nil {
+		return err
+	}
+	var req pushRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	days := make([]time.Time, 0, len(req.Days))
+	for _, s := range req.Days {
+		d, err := availability.ParseDay(s)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		days = append(days, d)
+	}
+	if err := h.svc.Push(c, tripID, viewerFrom(c), days); err != nil {
+		return tripError(err)
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// tripError แปลง error ของ service เป็น HTTP status ที่ใช้ร่วมกันทุก route ของทริป
+func tripError(err error) error {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	case errors.Is(err, ErrGuestNotAllowed):
+		return fiber.NewError(fiber.StatusForbidden, err.Error())
+	case errors.Is(err, ErrDayOutOfRange), errors.Is(err, availability.ErrInvalidDay):
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	default:
+		return err
+	}
+}
+
+// requireJSON: body ของ route ที่เปลี่ยนข้อมูลต้องเป็น JSON — form จากเว็บอื่นส่ง JSON ข้าม origin ไม่ได้ถ้าไม่ผ่าน CORS
+func requireJSON(c fiber.Ctx) error {
+	if !strings.HasPrefix(c.Get(fiber.HeaderContentType), fiber.MIMEApplicationJSON) {
+		return fiber.NewError(fiber.StatusUnsupportedMediaType, "request body must be JSON")
+	}
+	return nil
 }
 
 // nonNil ให้ JSON เป็น [] แทน null ฝั่งเว็บจะได้ใช้ .length ได้เลย
