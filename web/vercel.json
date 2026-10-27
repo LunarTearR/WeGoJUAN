@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://REPLACE-WITH-RAILWAY-DOMAIN.up.railway.app/api/:path*" },
-    { "source": "/healthz", "destination": "https://REPLACE-WITH-RAILWAY-DOMAIN.up.railway.app/healthz" },
+    { "source": "/api/:path*", "destination": "https://wegojuan-production.up.railway.app/api/:path*" },
+    { "source": "/healthz", "destination": "https://wegojuan-production.up.railway.app/healthz" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
