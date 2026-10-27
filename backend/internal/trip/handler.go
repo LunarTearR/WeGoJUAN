@@ -112,6 +112,7 @@ type pushDayResponse struct {
 	Day            string               `json:"day"`
 	TripStatus     *availability.Status `json:"trip_status"` // null = ยังไม่ระบุ
 	CalendarStatus *availability.Status `json:"calendar_status"`
+	CalendarReason string               `json:"calendar_reason,omitempty"` // Reason ของตัวเอง เห็นแค่เจ้าของ
 }
 
 type updateDatesRequest struct {
@@ -258,6 +259,11 @@ func (h *Handler) setMyMarks(c fiber.Ctx) error {
 	if err := c.Bind().Body(&reqs); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
+	// Mark ในทริปไม่มี Reason — ทิ้งก่อน parse เลย จะได้ไม่มีกรณี Reason ผิดรูปแบบทำให้ request ล้ม
+	// (Reason อยู่ได้แค่ในปฏิทินส่วนตัว)
+	for i := range reqs {
+		reqs[i].Reason = nil
+	}
 	set, clear, err := availability.ParseChanges(reqs)
 	if err == nil {
 		err = h.svc.SetMyMarks(c, tripID, viewerFrom(c), set, clear)
@@ -351,7 +357,7 @@ func (h *Handler) pushPreview(c fiber.Ctx) error {
 	}
 	resp := make([]pushDayResponse, 0, len(days))
 	for _, d := range days {
-		resp = append(resp, pushDayResponse{Day: d.Day.Format(time.DateOnly), TripStatus: d.Trip, CalendarStatus: d.Calendar})
+		resp = append(resp, pushDayResponse{Day: d.Day.Format(time.DateOnly), TripStatus: d.Trip, CalendarStatus: d.Calendar, CalendarReason: d.CalendarReason})
 	}
 	return c.JSON(resp)
 }

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { createBrowserRouter, Navigate } from 'react-router'
 import { AppShell } from '@/components/layout/app-shell'
 import { RequireUser } from '@/features/auth/components/require-user'
 import { UserMenu } from '@/features/auth/components/user-menu'
@@ -19,7 +19,9 @@ export const router = createBrowserRouter([
       {
         element: <RequireUser />,
         children: [
-          { index: true, element: <CalendarRoute /> },
+          // หน้าแรกหลัง login คือทริปของฉัน — ลิงก์เก่าที่ชี้ / ยังใช้ได้
+          { index: true, element: <Navigate to="/trips" replace /> },
+          { path: 'calendar', element: <CalendarRoute /> },
           { path: 'trips', element: <TripsRoute /> },
           { path: 'trips/new', element: <TripNewRoute /> },
         ],

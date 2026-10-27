@@ -76,4 +76,5 @@ export type PushDay = {
   day: ISODate
   trip_status: Status | null
   calendar_status: Status | null
+  calendar_reason?: string // เหตุผลส่วนตัวของตัวเอง — เห็นแค่เจ้าของ
 }

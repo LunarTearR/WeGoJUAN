@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-
-	"WeGoJUAN-backend/internal/availability"
 )
 
 // confirmedTrip: ทริปของ decemberTrip ที่ยืนยันวัน start แล้ว (viewer = nat)
@@ -68,7 +66,8 @@ func TestGet_ConfirmedOffer_NeverForGuests(t *testing.T) {
 	}
 }
 
-func TestAnswerOffer_AcceptWritesBusyToCalendar(t *testing.T) {
+// ตอบรับ = ไม่ว่างทุกวันใน Confirmed Dates โดย Reason = ชื่อทริป (MarkBusy ไม่ทับ Reason เดิมของ User)
+func TestAnswerOffer_UsesMarkBusyWithTitle(t *testing.T) {
 	repo, me := confirmedTrip(t, "2026-12-05")
 
 	err := newTestService(repo, defaultNow).AnswerConfirmedOffer(context.Background(), repo.trip.ID, Viewer{UserID: natID}, true, mustDay(t, "2026-12-05"))
@@ -76,14 +75,10 @@ func TestAnswerOffer_AcceptWritesBusyToCalendar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []availability.Mark{busy(t, "2026-12-05"), busy(t, "2026-12-06"), busy(t, "2026-12-07")}
-	if repo.cal.setFor != natID.String() || len(repo.cal.setMarks) != 3 || len(repo.cal.clearMarks) != 0 {
-		t.Fatalf("calendar set for %q marks=%v clear=%v", repo.cal.setFor, repo.cal.setMarks, repo.cal.clearMarks)
-	}
-	for i := range want {
-		if repo.cal.setMarks[i] != want[i] {
-			t.Errorf("mark %d = %v, want %v", i, repo.cal.setMarks[i], want[i])
-		}
+	c := repo.cal
+	if c.busyCalls != 1 || c.busyFor != natID.String() || c.busyReason != "Chiang Mai" || len(c.busyDays) != 3 ||
+		!c.busyDays[0].Equal(mustDay(t, "2026-12-05")) || !c.busyDays[2].Equal(mustDay(t, "2026-12-07")) {
+		t.Fatalf("MarkBusy calls=%d for %q days=%v reason=%q", c.busyCalls, c.busyFor, c.busyDays, c.busyReason)
 	}
 	if got := repo.offerAnswered[me.ID]; !got.Equal(mustDay(t, "2026-12-05")) {
 		t.Errorf("answered = %v, want Dec 5", got)
@@ -98,7 +93,7 @@ func TestAnswerOffer_DeclineWritesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if repo.cal.setCalls != 0 {
+	if repo.cal.busyCalls != 0 {
 		t.Error("declining must not touch the Personal Calendar")
 	}
 	if _, ok := repo.offerAnswered[me.ID]; !ok {
@@ -151,7 +146,7 @@ func TestAnswerOffer_StaleStart_Conflict(t *testing.T) {
 	if !errors.Is(err, ErrConfirmedChanged) {
 		t.Fatalf("err = %v, want ErrConfirmedChanged", err)
 	}
-	if repo.cal.setCalls != 0 || len(repo.offerAnswered) != 0 {
+	if repo.cal.busyCalls != 0 || len(repo.offerAnswered) != 0 {
 		t.Error("stale answer must write nothing")
 	}
 }

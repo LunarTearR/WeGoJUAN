@@ -71,3 +71,50 @@ func TestPush_204(t *testing.T) {
 		t.Error("pushed_at not recorded")
 	}
 }
+
+func TestPushPreview_JSONHasCalendarReason(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.cal = &fakeCalendar{marks: []availability.Mark{{Day: mustDay(t, "2026-12-06"), Status: availability.StatusBusy, Reason: "workday"}}}
+	app := newTestApp(t, repo)
+
+	res := request(t, app, http.MethodGet, "/trips/"+repo.trip.ID.String()+"/push-preview", "", loginAs(t, app, natID))
+
+	b, _ := io.ReadAll(res.Body)
+	if want := `[{"day":"2026-12-06","trip_status":null,"calendar_status":"busy","calendar_reason":"workday"}]`; string(b) != want {
+		t.Errorf("body = %s, want %s", b, want)
+	}
+}
+
+// Mark ในทริปไม่มี Reason — ส่งมาก็ไม่เก็บ
+func TestTripMarks_NeverCarryReason(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	app := newTestApp(t, repo)
+
+	res := request(t, app, http.MethodPut, "/trips/"+repo.trip.ID.String()+"/marks/me",
+		`[{"day":"2026-12-05","status":"busy","reason":"hospital"}]`, loginAs(t, app, natID))
+
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", res.StatusCode)
+	}
+	if len(repo.savedSet) != 1 || repo.savedSet[0].Reason != "" {
+		t.Errorf("saved = %+v, want no reason on trip marks", repo.savedSet)
+	}
+}
+
+// trip ไม่รับ Reason เลย — Reason แบบไหนก็ถูกทิ้ง ไม่ใช่ 500 / 400
+func TestTripMarks_IgnoreAnyReason(t *testing.T) {
+	for _, body := range []string{
+		`[{"day":"2026-12-05","status":"free","reason":"x"}]`,
+		`[{"day":"2026-12-05","status":null,"reason":"x"}]`,
+		`[{"day":"2026-12-05","status":"busy","reason":"` + strings.Repeat("ก", 61) + `"}]`,
+	} {
+		repo, _ := decemberTrip(t)
+		app := newTestApp(t, repo)
+
+		res := request(t, app, http.MethodPut, "/trips/"+repo.trip.ID.String()+"/marks/me", body, loginAs(t, app, natID))
+
+		if res.StatusCode != http.StatusNoContent {
+			t.Errorf("%s: status = %d, want 204 (reason ignored)", body, res.StatusCode)
+		}
+	}
+}

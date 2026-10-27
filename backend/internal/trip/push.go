@@ -15,6 +15,8 @@ type PushDay struct {
 	Day      time.Time
 	Trip     *availability.Status
 	Calendar *availability.Status
+	// CalendarReason ของตัวเอง ช่วยเลือกวัน — แสดงเฉพาะเจ้าของ ไม่ถูกคัดลอกเข้าทริป
+	CalendarReason string
 }
 
 // PushPreview แสดงทุกวันใน Date Range ที่ทริปกับปฏิทินส่วนตัวไม่ตรงกัน ให้ User เลือกว่าจะทับวันไหน
@@ -32,7 +34,8 @@ func (s *Service) PushPreview(ctx context.Context, tripID uuid.UUID, v Viewer) (
 	for d := t.StartDate; !d.After(t.EndDate); d = d.AddDate(0, 0, 1) {
 		k := d.Format(time.DateOnly)
 		ts, inTrip := tripBy[k]
-		cs, inCal := calBy[k]
+		cm, inCal := calBy[k]
+		cs := cm.Status
 		if inTrip == inCal && ts == cs {
 			continue
 		}
@@ -42,6 +45,7 @@ func (s *Service) PushPreview(ctx context.Context, tripID uuid.UUID, v Viewer) (
 		}
 		if inCal {
 			pd.Calendar = &cs
+			pd.CalendarReason = cm.Reason
 		}
 		days = append(days, pd)
 	}
@@ -74,8 +78,8 @@ func (s *Service) Push(ctx context.Context, tripID uuid.UUID, v Viewer, days []t
 			continue
 		}
 		seen[k] = true
-		if st, ok := calBy[k]; ok {
-			set = append(set, availability.Mark{Day: d, Status: st})
+		if cm, ok := calBy[k]; ok {
+			set = append(set, availability.Mark{Day: d, Status: cm.Status}) // สถานะอย่างเดียว ไม่เอา Reason
 		} else {
 			clear = append(clear, d)
 		}
@@ -99,8 +103,8 @@ func (s *Service) pusher(ctx context.Context, tripID uuid.UUID, v Viewer) (Trip,
 	return t, me, err
 }
 
-// pushSides คืน Mark ของฉันในทริป กับ Mark ในปฏิทินส่วนตัวช่วง Date Range — key เป็น "YYYY-MM-DD"
-func (s *Service) pushSides(ctx context.Context, t Trip, me Member) (map[string]availability.Status, map[string]availability.Status, error) {
+// pushSides คืนสถานะของฉันในทริป กับ Mark ในปฏิทินส่วนตัว (มี Reason) ช่วง Date Range — key เป็น "YYYY-MM-DD"
+func (s *Service) pushSides(ctx context.Context, t Trip, me Member) (map[string]availability.Status, map[string]availability.Mark, error) {
 	all, err := s.repo.ListMarks(ctx, t.ID)
 	if err != nil {
 		return nil, nil, err
@@ -109,7 +113,11 @@ func (s *Service) pushSides(ctx context.Context, t Trip, me Member) (map[string]
 	if err != nil {
 		return nil, nil, err
 	}
-	return statusByDay(all[me.ID]), statusByDay(cal), nil
+	calBy := make(map[string]availability.Mark, len(cal))
+	for _, m := range cal {
+		calBy[m.Day.Format(time.DateOnly)] = m
+	}
+	return statusByDay(all[me.ID]), calBy, nil
 }
 
 func statusByDay(marks []availability.Mark) map[string]availability.Status {

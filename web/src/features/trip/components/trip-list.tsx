@@ -11,7 +11,18 @@ export function TripList() {
     return <p className="text-red-700">โหลดทริปไม่สำเร็จ: {error.message}</p>
   }
   if (trips.length === 0) {
-    return <p>ยังไม่มีทริป ลองสร้างทริปแรกดู</p>
+    return (
+      <div className="space-y-2">
+        <p>ยังไม่มีทริป ลองสร้างทริปแรกดู</p>
+        <p className="text-sm text-gray-600">
+          หรือเริ่มจาก{' '}
+          <Link to="/calendar" className="underline">
+            ระบุวันว่างในปฏิทินของฉัน
+          </Link>{' '}
+          ไว้ใช้กับทุกทริป
+        </p>
+      </div>
+    )
   }
 
   return (

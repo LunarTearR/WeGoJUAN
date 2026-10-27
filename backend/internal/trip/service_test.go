@@ -157,10 +157,10 @@ type fakeCalendar struct {
 	marks []availability.Mark
 
 	listedFor  string
-	setFor     string
-	setMarks   []availability.Mark
-	clearMarks []time.Time
-	setCalls   int
+	busyFor    string
+	busyDays   []time.Time
+	busyReason string
+	busyCalls  int
 }
 
 func (c *fakeCalendar) ListByUser(ctx context.Context, userID string, from, to time.Time) ([]availability.Mark, error) {
@@ -174,9 +174,9 @@ func (c *fakeCalendar) ListByUser(ctx context.Context, userID string, from, to t
 	return out, nil
 }
 
-func (c *fakeCalendar) SetMarks(ctx context.Context, userID string, set []availability.Mark, clear []time.Time) error {
-	c.setCalls++
-	c.setFor, c.setMarks, c.clearMarks = userID, set, clear
+func (c *fakeCalendar) MarkBusy(ctx context.Context, userID string, days []time.Time, reason string) error {
+	c.busyCalls++
+	c.busyFor, c.busyDays, c.busyReason = userID, days, reason
 	return nil
 }
 

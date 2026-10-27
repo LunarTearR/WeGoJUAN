@@ -27,4 +27,7 @@ func (s Status) Valid() bool {
 type Mark struct {
 	Day    time.Time
 	Status Status
+	// Reason ส่วนตัวว่าทำไมไม่ว่าง — มีเฉพาะในปฏิทินส่วนตัวและเฉพาะวันไม่ว่าง ("" = ไม่ระบุ)
+	// Mark ในทริปไม่เคยมี Reason
+	Reason string
 }
