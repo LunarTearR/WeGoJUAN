@@ -7,7 +7,9 @@ import (
 )
 
 type Repository interface {
-	Upsert(ctx context.Context, userID string, marks []Mark) error
+	// Save ตั้ง Mark ใน set และลบวันใน clear ใน transaction เดียว
+	Save(ctx context.Context, userID string, set []Mark, clear []time.Time) error
+	// ListByUser เรียงตามวัน
 	ListByUser(ctx context.Context, userID string, from, to time.Time) ([]Mark, error)
 }
 
@@ -19,13 +21,13 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) SetMarks(ctx context.Context, userID string, marks []Mark) error {
-	for _, m := range marks {
+func (s *Service) SetMarks(ctx context.Context, userID string, set []Mark, clear []time.Time) error {
+	for _, m := range set {
 		if !m.Status.Valid() {
 			return fmt.Errorf("%w: %q", ErrInvalidStatus, m.Status)
 		}
 	}
-	return s.repo.Upsert(ctx, userID, marks)
+	return s.repo.Save(ctx, userID, set, clear)
 }
 
 func (s *Service) ListByUser(ctx context.Context, userID string, from, to time.Time) ([]Mark, error) {
