@@ -77,7 +77,7 @@ func (s *Service) ListMine(ctx context.Context, userID uuid.UUID) ([]Trip, error
 
 // Get คืนทริปเฉพาะสมาชิก — คนนอกได้ ErrNotFound เหมือนไม่มีทริปนี้
 func (s *Service) Get(ctx context.Context, tripID uuid.UUID, v Viewer) (Detail, error) {
-	me, err := s.repo.FindMember(ctx, tripID, v)
+	me, err := s.findMember(ctx, tripID, v)
 	if err != nil {
 		return Detail{}, err
 	}
@@ -98,7 +98,7 @@ func (s *Service) Preview(ctx context.Context, code string, v Viewer) (Trip, boo
 	if err != nil {
 		return Trip{}, false, err
 	}
-	_, err = s.repo.FindMember(ctx, t.ID, v)
+	_, err = s.findMember(ctx, t.ID, v)
 	switch {
 	case err == nil:
 		return t, true, nil
@@ -110,7 +110,7 @@ func (s *Service) Preview(ctx context.Context, code string, v Viewer) (Trip, boo
 }
 
 // JoinAsUser เข้าร่วมทริปทันทีไม่ต้องรออนุมัติ — เป็นสมาชิกอยู่แล้วก็คืนสมาชิกเดิม
-func (s *Service) JoinAsUser(ctx context.Context, code string, userID uuid.UUID, displayName string) (Trip, Member, error) {
+func (s *Service) JoinAsUser(ctx context.Context, code string, v Viewer, displayName string) (Trip, Member, error) {
 	displayName = strings.TrimSpace(displayName)
 	if displayName != "" {
 		if err := validateDisplayName(displayName); err != nil {
@@ -122,20 +122,20 @@ func (s *Service) JoinAsUser(ctx context.Context, code string, userID uuid.UUID,
 	if err != nil {
 		return Trip{}, Member{}, err
 	}
-	m, err := s.repo.FindMember(ctx, t.ID, Viewer{UserID: userID})
+	m, err := s.findMember(ctx, t.ID, v)
 	if err == nil {
 		return t, m, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
 		return Trip{}, Member{}, err
 	}
-	m, err = s.repo.AddUserMember(ctx, t.ID, userID, displayName)
+	m, err = s.repo.AddUserMember(ctx, t.ID, v.UserID, displayName)
 	return t, m, err
 }
 
 // Marks คืน Mark ของทุกสมาชิก — สมาชิกเห็นของกันและกันทั้งหมด คนนอกได้ ErrNotFound
 func (s *Service) Marks(ctx context.Context, tripID uuid.UUID, v Viewer) (map[uuid.UUID][]availability.Mark, error) {
-	if _, err := s.repo.FindMember(ctx, tripID, v); err != nil {
+	if _, err := s.findMember(ctx, tripID, v); err != nil {
 		return nil, err
 	}
 	return s.repo.ListMarks(ctx, tripID)
@@ -143,7 +143,7 @@ func (s *Service) Marks(ctx context.Context, tripID uuid.UUID, v Viewer) (map[uu
 
 // SetMyMarks แก้ Mark ของตัวเองในทริป (แก้ได้แค่ของตัวเอง และเฉพาะวันใน Date Range)
 func (s *Service) SetMyMarks(ctx context.Context, tripID uuid.UUID, v Viewer, set []availability.Mark, clear []time.Time) error {
-	me, err := s.repo.FindMember(ctx, tripID, v)
+	me, err := s.findMember(ctx, tripID, v)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (s *Service) JoinAsGuest(ctx context.Context, code, guestTokenHash, display
 
 // Suggestions จัดอันดับ Window จาก Mark ในทริป — Window ที่เริ่มก่อนวันนี้ไม่แนะนำ
 func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) ([]Window, error) {
-	if _, err := s.repo.FindMember(ctx, tripID, v); err != nil {
+	if _, err := s.findMember(ctx, tripID, v); err != nil {
 		return nil, err
 	}
 	t, err := s.repo.FindByID(ctx, tripID)
@@ -216,6 +216,16 @@ func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) (
 		ids[i] = m.ID
 	}
 	return SuggestWindows(ids, marks, from, t.EndDate, t.DurationDays), nil
+}
+
+// findMember หาสมาชิกจาก User ก่อน ถ้าไม่เจอแต่เครื่องนี้เคยเข้าทริปแบบ Guest ก็ใช้สมาชิก Guest นั้น
+// (เคยเข้าแบบ Guest แล้ว login/สมัครทีหลังบนเครื่องเดิม จะได้ไม่หลุดจากทริป — จนกว่าจะรวม Guest เข้า User ได้จริง)
+func (s *Service) findMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error) {
+	m, err := s.repo.FindMember(ctx, tripID, v)
+	if errors.Is(err, ErrNotFound) && v.UserID != uuid.Nil && v.GuestTokenHash != "" {
+		return s.repo.FindMember(ctx, tripID, Viewer{GuestTokenHash: v.GuestTokenHash})
+	}
+	return m, err
 }
 
 func validateDisplayName(name string) error {

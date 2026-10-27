@@ -2,6 +2,8 @@ package trip
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"WeGoJUAN-backend/internal/auth"
@@ -129,5 +131,63 @@ func TestGuest_CannotListTrips_401(t *testing.T) {
 
 	if res.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", res.StatusCode)
+	}
+}
+
+// cookie ของ Guest ต้องตั้งเฉพาะตอนเข้าร่วมสำเร็จ — ไม่งั้นเว็บอื่นยิง POST มาล้าง cookie เดิมของเครื่องได้
+func TestJoinAsGuest_FailedJoin_SetsNoCookie(t *testing.T) {
+	tests := []struct {
+		name string
+		repo func(*fakeRepo)
+		body string
+		want int
+	}{
+		{"unknown code", func(r *fakeRepo) { r.byCodeErr = ErrNotFound }, `{"display_name":"Bank"}`, http.StatusNotFound},
+		{"no name", func(*fakeRepo) {}, `{"display_name":""}`, http.StatusBadRequest},
+		{"name taken", func(r *fakeRepo) { r.addErr = ErrDisplayNameTaken }, `{"display_name":"ploy"}`, http.StatusConflict},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := guestRepo(t)
+			tt.repo(repo)
+
+			res := request(t, newTestApp(t, repo), http.MethodPost, "/invites/code123/join", tt.body)
+
+			var ck *http.Cookie
+			for _, c := range res.Cookies() {
+				if c.Name == auth.GuestCookieName {
+					ck = c
+				}
+			}
+			if res.StatusCode != tt.want {
+				t.Errorf("status = %d, want %d", res.StatusCode, tt.want)
+			}
+			if ck != nil {
+				t.Errorf("failed join set guest cookie %q", ck.Value)
+			}
+		})
+	}
+}
+
+// form ข้ามเว็บส่ง application/json ไม่ได้ (ต้อง preflight ซึ่ง CORS บล็อก) → บังคับ JSON กัน CSRF
+func TestJoin_NonJSON_415(t *testing.T) {
+	app := newTestApp(t, guestRepo(t))
+	for _, ct := range []string{"application/x-www-form-urlencoded", "text/plain", ""} {
+		req := httptest.NewRequest(http.MethodPost, "/invites/code123/join", strings.NewReader("display_name=Bank"))
+		if ct != "" {
+			req.Header.Set("Content-Type", ct)
+		}
+		res, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != http.StatusUnsupportedMediaType {
+			t.Errorf("Content-Type %q: status = %d, want 415", ct, res.StatusCode)
+		}
+		for _, c := range res.Cookies() {
+			if c.Name == auth.GuestCookieName {
+				t.Errorf("Content-Type %q: set guest cookie", ct)
+			}
+		}
 	}
 }

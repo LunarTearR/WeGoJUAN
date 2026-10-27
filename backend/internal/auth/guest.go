@@ -27,19 +27,20 @@ func GuestToken(c fiber.Ctx) string {
 	return ""
 }
 
-// EnsureGuestToken ใช้ token เดิมของเครื่องนี้ถ้ามี ไม่งั้นสุ่มใหม่แล้วตั้ง cookie อายุ 1 ปี
-func (m *Manager) EnsureGuestToken(c fiber.Ctx) (string, error) {
-	if t := GuestToken(c); t != "" {
-		return t, nil
-	}
+// NewGuestToken สุ่ม token ใหม่ 32 byte (base64url 43 ตัว)
+func NewGuestToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
-	t := base64.RawURLEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// SetGuestToken ตั้ง cookie อายุ 1 ปีให้เครื่องนี้
+func (m *Manager) SetGuestToken(c fiber.Ctx, token string) {
 	c.Cookie(&fiber.Cookie{
 		Name:     GuestCookieName,
-		Value:    t,
+		Value:    token,
 		Path:     "/",
 		Expires:  time.Now().Add(guestTokenTTL),
 		MaxAge:   int(guestTokenTTL.Seconds()),
@@ -47,7 +48,6 @@ func (m *Manager) EnsureGuestToken(c fiber.Ctx) (string, error) {
 		Secure:   m.secureCookie,
 		SameSite: fiber.CookieSameSiteLaxMode,
 	})
-	return t, nil
 }
 
 // HashGuestToken — DB เก็บแค่ hash ข้อมูลหลุดก็เอาไปสวมรอยเป็น Guest ไม่ได้

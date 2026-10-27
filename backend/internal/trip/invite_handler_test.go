@@ -60,7 +60,7 @@ func TestJoin_EmptyBody_UsesAccountName(t *testing.T) {
 	repo := inviteRepo(t)
 	app := newInviteTestApp(t, repo)
 
-	res := request(t, app, http.MethodPost, "/invites/code123/join", "", loginAs(t, app, natID))
+	res := request(t, app, http.MethodPost, "/invites/code123/join", `{}`, loginAs(t, app, natID))
 
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", res.StatusCode)

@@ -2,6 +2,7 @@ package trip
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -36,6 +37,8 @@ type inviteResponse struct {
 	IsMember     bool      `json:"is_member"`
 }
 
+// joinRequest ต้องส่งเป็น JSON เสมอ — form จากเว็บอื่นส่ง application/json ไม่ได้ถ้าไม่ผ่าน CORS preflight
+// จึงกันเว็บอื่นยิง POST มาเข้าร่วมทริปแทน (และล้าง guest cookie ของเครื่อง) ได้
 type joinRequest struct {
 	DisplayName string `json:"display_name"` // User: ว่างได้ = ใช้ชื่อบัญชี, Guest: ต้องมี
 }
@@ -64,11 +67,12 @@ func (h *InviteHandler) preview(c fiber.Ctx) error {
 }
 
 func (h *InviteHandler) join(c fiber.Ctx) error {
+	if !strings.HasPrefix(c.Get(fiber.HeaderContentType), fiber.MIMEApplicationJSON) {
+		return fiber.NewError(fiber.StatusUnsupportedMediaType, "request body must be JSON")
+	}
 	var req joinRequest
-	if len(c.Body()) > 0 {
-		if err := c.Bind().Body(&req); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
-		}
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
 
 	t, m, err := h.joinAsUserOrGuest(c, req.DisplayName)
@@ -87,11 +91,21 @@ func (h *InviteHandler) join(c fiber.Ctx) error {
 
 func (h *InviteHandler) joinAsUserOrGuest(c fiber.Ctx, displayName string) (Trip, Member, error) {
 	if userID := userIDFrom(c); userID != uuid.Nil {
-		return h.svc.JoinAsUser(c, c.Params("code"), userID, displayName)
+		return h.svc.JoinAsUser(c, c.Params("code"), viewerFrom(c), displayName)
 	}
-	token, err := h.auth.EnsureGuestToken(c)
-	if err != nil {
-		return Trip{}, Member{}, err
+
+	token := auth.GuestToken(c)
+	isNew := token == ""
+	if isNew {
+		var err error
+		if token, err = auth.NewGuestToken(); err != nil {
+			return Trip{}, Member{}, err
+		}
 	}
-	return h.svc.JoinAsGuest(c, c.Params("code"), auth.HashGuestToken(token), displayName)
+	t, m, err := h.svc.JoinAsGuest(c, c.Params("code"), auth.HashGuestToken(token), displayName)
+	// ตั้ง cookie เฉพาะเมื่อเข้าร่วมสำเร็จ — join ที่ล้มเหลวต้องไม่ไปทับ token เดิมของเครื่อง
+	if err == nil && isNew {
+		h.auth.SetGuestToken(c, token)
+	}
+	return t, m, err
 }

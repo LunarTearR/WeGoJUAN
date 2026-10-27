@@ -15,11 +15,15 @@ import (
 func newGuestApp(m *auth.Manager) *fiber.App {
 	app := fiber.New()
 	app.Post("/guest", func(c fiber.Ctx) error {
-		token, err := m.EnsureGuestToken(c)
+		token, err := auth.NewGuestToken()
 		if err != nil {
 			return err
 		}
+		m.SetGuestToken(c, token)
 		return c.SendString(token)
+	})
+	app.Get("/guest", func(c fiber.Ctx) error {
+		return c.SendString(auth.GuestToken(c))
 	})
 	return app
 }
@@ -33,7 +37,7 @@ func guestCookie(res *http.Response) *http.Cookie {
 	return nil
 }
 
-func TestEnsureGuestToken_IssuesHttpOnlyCookie(t *testing.T) {
+func TestSetGuestToken_IssuesHttpOnlyCookie(t *testing.T) {
 	app := newGuestApp(newManager(t, testSecret, time.Hour, true))
 
 	res := do(t, app, http.MethodPost, "/guest")
@@ -54,29 +58,33 @@ func TestEnsureGuestToken_IssuesHttpOnlyCookie(t *testing.T) {
 	}
 }
 
-func TestEnsureGuestToken_ReusesExisting(t *testing.T) {
-	app := newGuestApp(newManager(t, testSecret, time.Hour, false))
-	existing := strings.Repeat("a", 43)
+func TestNewGuestToken_RandomAnd43Chars(t *testing.T) {
+	a, err1 := auth.NewGuestToken()
+	b, err2 := auth.NewGuestToken()
 
-	res := do(t, app, http.MethodPost, "/guest", &http.Cookie{Name: auth.GuestCookieName, Value: existing})
-
-	body, _ := io.ReadAll(res.Body)
-	if string(body) != existing {
-		t.Errorf("token = %q, want existing %q", body, existing)
-	}
-	if guestCookie(res) != nil {
-		t.Error("existing token must not be re-issued")
+	if err1 != nil || err2 != nil || len(a) != 43 || a == b {
+		t.Errorf("tokens %q %q errs %v %v, want two different 43-char tokens", a, b, err1, err2)
 	}
 }
 
-func TestEnsureGuestToken_ReplacesMalformed(t *testing.T) {
+func TestGuestToken_ReadsValidCookie(t *testing.T) {
+	app := newGuestApp(newManager(t, testSecret, time.Hour, false))
+	existing := strings.Repeat("a", 43)
+
+	res := do(t, app, http.MethodGet, "/guest", &http.Cookie{Name: auth.GuestCookieName, Value: existing})
+
+	if body, _ := io.ReadAll(res.Body); string(body) != existing {
+		t.Errorf("token = %q, want %q", body, existing)
+	}
+}
+
+func TestGuestToken_IgnoresMalformed(t *testing.T) {
 	app := newGuestApp(newManager(t, testSecret, time.Hour, false))
 
-	res := do(t, app, http.MethodPost, "/guest", &http.Cookie{Name: auth.GuestCookieName, Value: "a"})
+	res := do(t, app, http.MethodGet, "/guest", &http.Cookie{Name: auth.GuestCookieName, Value: "a"})
 
-	body, _ := io.ReadAll(res.Body)
-	if string(body) == "a" || guestCookie(res) == nil {
-		t.Errorf("malformed token %q must be replaced with a new cookie", body)
+	if body, _ := io.ReadAll(res.Body); string(body) != "" {
+		t.Errorf("token = %q, want empty for malformed cookie", body)
 	}
 }
 

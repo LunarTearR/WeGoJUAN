@@ -52,7 +52,7 @@ func (t Trip) inDateRange(d time.Time) bool {
 }
 
 // Viewer คือคนที่กำลังเรียก API — ใช้หาว่าเป็นสมาชิกคนไหนของทริป
-// มีทั้งคู่ได้ (เคยเข้าแบบ Guest แล้ว login ทีหลัง) — UserID มาก่อน
+// มีทั้งคู่ได้ (เคยเข้าแบบ Guest แล้ว login ทีหลัง) — หาจาก UserID ก่อน ไม่เจอค่อยใช้ Guest ของเครื่องนี้
 type Viewer struct {
 	UserID         uuid.UUID
 	GuestTokenHash string

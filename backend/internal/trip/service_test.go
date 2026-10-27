@@ -297,7 +297,7 @@ func TestJoinAsUser_AlreadyMember_ReturnsExisting(t *testing.T) {
 	existing := Member{ID: uuid.New(), UserID: natID, DisplayName: "nat"}
 	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, member: existing}
 
-	_, m, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, "")
+	_, m, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", Viewer{UserID: natID}, "")
 
 	if err != nil || m.ID != existing.ID {
 		t.Fatalf("member = %+v err = %v, want existing", m, err)
@@ -310,7 +310,7 @@ func TestJoinAsUser_AlreadyMember_ReturnsExisting(t *testing.T) {
 func TestJoinAsUser_NewMember_Added(t *testing.T) {
 	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: ErrNotFound}
 
-	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, "  Nat  ")
+	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", Viewer{UserID: natID}, "  Nat  ")
 
 	if err != nil {
 		t.Fatal(err)
@@ -323,7 +323,7 @@ func TestJoinAsUser_NewMember_Added(t *testing.T) {
 func TestJoinAsUser_NameTaken(t *testing.T) {
 	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: ErrNotFound, addErr: ErrDisplayNameTaken}
 
-	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, "ploy")
+	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", Viewer{UserID: natID}, "ploy")
 
 	if !errors.Is(err, ErrDisplayNameTaken) {
 		t.Fatalf("err = %v, want ErrDisplayNameTaken", err)
@@ -333,7 +333,7 @@ func TestJoinAsUser_NameTaken(t *testing.T) {
 func TestJoinAsUser_DisplayNameTooLong(t *testing.T) {
 	repo := &fakeRepo{byCode: Trip{ID: uuid.New()}, memberErr: ErrNotFound}
 
-	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", natID, strings.Repeat("ก", 51))
+	_, _, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", Viewer{UserID: natID}, strings.Repeat("ก", 51))
 
 	if !errors.Is(err, ErrInvalidDisplayName) {
 		t.Fatalf("err = %v, want ErrInvalidDisplayName", err)
@@ -506,5 +506,49 @@ func TestSuggestions_NonMember_NotFound(t *testing.T) {
 
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
+	}
+}
+
+// เคยเข้าทริปแบบ Guest ในเครื่องนี้ แล้ว login/สมัครทีหลัง — ต้องยังเห็นทริปในฐานะสมาชิกเดิม (จนกว่าจะมี slice #15)
+func TestGet_UserWithGuestCookie_FallsBackToGuestMember(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.memberErr = ErrNotFound // ยังไม่ได้เป็นสมาชิกในฐานะ User
+	guest := Member{ID: uuid.New(), DisplayName: "Bank"}
+	repo.guests = map[string]Member{bankHash: guest}
+
+	d, err := newTestService(repo, defaultNow).Get(context.Background(), repo.trip.ID, Viewer{UserID: natID, GuestTokenHash: bankHash})
+
+	if err != nil || d.Me.ID != guest.ID {
+		t.Fatalf("me = %+v err = %v, want the Guest member of this device", d.Me, err)
+	}
+}
+
+func TestPreview_UserWithGuestCookie_IsMember(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.byCode = repo.trip
+	repo.memberErr = ErrNotFound
+	repo.guests = map[string]Member{bankHash: {ID: uuid.New(), DisplayName: "Bank"}}
+
+	_, isMember, err := newTestService(repo, defaultNow).Preview(context.Background(), "code", Viewer{UserID: natID, GuestTokenHash: bankHash})
+
+	if err != nil || !isMember {
+		t.Fatalf("isMember = %v err = %v, want true", isMember, err)
+	}
+}
+
+func TestJoinAsUser_GuestOnSameDevice_ReturnsGuestMember(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.byCode = repo.trip
+	repo.memberErr = ErrNotFound
+	guest := Member{ID: uuid.New(), DisplayName: "Bank"}
+	repo.guests = map[string]Member{bankHash: guest}
+
+	_, m, err := newTestService(repo, defaultNow).JoinAsUser(context.Background(), "code", Viewer{UserID: natID, GuestTokenHash: bankHash}, "")
+
+	if err != nil || m.ID != guest.ID {
+		t.Fatalf("member = %+v err = %v, want existing Guest member", m, err)
+	}
+	if len(repo.addedUsers) != 0 {
+		t.Error("must not add a second member for the same person")
 	}
 }

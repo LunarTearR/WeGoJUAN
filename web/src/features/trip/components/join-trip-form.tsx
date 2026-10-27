@@ -38,7 +38,7 @@ export function JoinTripForm({ code, asGuest = false }: JoinTripFormProps) {
       {joinMutation.error && (
         <p className="text-sm text-red-700">{nameTaken ? 'ชื่อนี้มีคนใช้ในทริปแล้ว ลองตั้งชื่ออื่น' : joinMutation.error.message}</p>
       )}
-      {asGuest && <p className="text-xs text-gray-500">ระบบจำคุณได้เฉพาะเครื่องนี้ สมัครสมาชิกเพื่อใช้ได้หลายเครื่องและมีปฏิทินส่วนตัว</p>}
+      {asGuest && <p className="text-xs text-gray-500">ระบบจำคุณได้เฉพาะเครื่องนี้ (ล้างข้อมูลเบราว์เซอร์แล้วจะแก้วันของตัวเองไม่ได้)</p>}
     </form>
   )
 }
