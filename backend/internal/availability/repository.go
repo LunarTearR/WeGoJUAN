@@ -57,3 +57,18 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID string, from
 	}
 	return marks, rows.Err()
 }
+
+func (r *PostgresRepository) MarkBusy(ctx context.Context, userID string, days []time.Time, reason string) error {
+	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		for _, d := range days {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO availability (user_id, day, status, reason) VALUES ($1, $2, 'busy', NULLIF($3, ''))
+				ON CONFLICT (user_id, day) DO UPDATE
+				SET status = 'busy', reason = COALESCE(availability.reason, EXCLUDED.reason)`,
+				userID, d, reason); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
