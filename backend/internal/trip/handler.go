@@ -259,11 +259,12 @@ func (h *Handler) setMyMarks(c fiber.Ctx) error {
 	if err := c.Bind().Body(&reqs); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
 	}
-	set, clear, err := availability.ParseChanges(reqs)
-	// Mark ในทริปไม่มี Reason — ส่งมาก็ทิ้ง (Reason อยู่ได้แค่ในปฏิทินส่วนตัว)
-	for i := range set {
-		set[i].Reason = ""
+	// Mark ในทริปไม่มี Reason — ทิ้งก่อน parse เลย จะได้ไม่มีกรณี Reason ผิดรูปแบบทำให้ request ล้ม
+	// (Reason อยู่ได้แค่ในปฏิทินส่วนตัว)
+	for i := range reqs {
+		reqs[i].Reason = nil
 	}
+	set, clear, err := availability.ParseChanges(reqs)
 	if err == nil {
 		err = h.svc.SetMyMarks(c, tripID, viewerFrom(c), set, clear)
 	}

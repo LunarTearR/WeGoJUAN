@@ -3,7 +3,7 @@ import { MonthGrid } from '@/components/calendar/month-grid'
 import { MonthNav } from '@/components/calendar/month-nav'
 import { statusClass, statusLabel } from '@/lib/mark'
 import type { ISODate } from '@/types/date'
-import type { Mark } from '@/types/mark'
+import type { Mark, MarkChange } from '@/types/mark'
 import { useMyMarks } from '../api/get-my-marks'
 import { useSaveMyMarks } from '../api/save-my-marks'
 import { busyRuns } from '../utils/busy-runs'
@@ -25,6 +25,21 @@ export function MonthCalendar({ year, month, onChangeMonth, onSaved }: MonthCale
   const [selected, setSelected] = useState<ISODate | null>(null)
 
   const markByDay = new Map<string, Mark>(marks?.map((m) => [m.day, m]))
+  const inMonth = (day: ISODate) => day >= from && day <= to
+  // ระหว่างบันทึกช่วงข้ามเดือน optimistic update อาจใส่วันเดือนอื่นมาในรายการชั่วคราว — สรุปเฉพาะเดือนที่แสดง
+  const monthMarks = marks?.filter((m) => inMonth(m.day))
+
+  function save(changes: MarkChange[]) {
+    // ชวน re-sync เฉพาะวันที่สถานะเปลี่ยนจริง — แก้แค่ Reason ไม่ต้อง Push ใหม่ (Push ไม่คัดลอก Reason)
+    const changedDays = changes
+      .filter((c) => !inMonth(c.day) || (markByDay.get(c.day)?.status ?? null) !== c.status)
+      .map((c) => c.day)
+    saveMutation.mutate(changes, {
+      onSuccess: () => {
+        if (changedDays.length > 0) onSaved?.(changedDays)
+      },
+    })
+  }
 
   return (
     <div className="space-y-3">
@@ -72,15 +87,16 @@ export function MonthCalendar({ year, month, onChangeMonth, onSaved }: MonthCale
 
       {selected && (
         <CalendarDayPanel
-          key={selected}
+          // เปลี่ยน key ตามสถานะ/เหตุผลที่บันทึกแล้ว → แผงเริ่มใหม่จากข้อมูลจริง ไม่ค้างเหตุผลที่ถูกลบไปแล้ว
+          key={`${selected}|${markByDay.get(selected)?.status ?? ''}|${markByDay.get(selected)?.reason ?? ''}`}
           day={selected}
           mark={markByDay.get(selected)}
           saving={saveMutation.isPending}
-          onSave={(changes) => saveMutation.mutate(changes, { onSuccess: () => onSaved?.(changes.map((c) => c.day)) })}
+          onSave={save}
         />
       )}
 
-      {marks && <BusySummary runs={busyRuns(marks)} onSelect={setSelected} />}
+      {monthMarks && <BusySummary runs={busyRuns(monthMarks)} onSelect={setSelected} />}
     </div>
   )
 }

@@ -100,3 +100,21 @@ func TestTripMarks_NeverCarryReason(t *testing.T) {
 		t.Errorf("saved = %+v, want no reason on trip marks", repo.savedSet)
 	}
 }
+
+// trip ไม่รับ Reason เลย — Reason แบบไหนก็ถูกทิ้ง ไม่ใช่ 500 / 400
+func TestTripMarks_IgnoreAnyReason(t *testing.T) {
+	for _, body := range []string{
+		`[{"day":"2026-12-05","status":"free","reason":"x"}]`,
+		`[{"day":"2026-12-05","status":null,"reason":"x"}]`,
+		`[{"day":"2026-12-05","status":"busy","reason":"` + strings.Repeat("ก", 61) + `"}]`,
+	} {
+		repo, _ := decemberTrip(t)
+		app := newTestApp(t, repo)
+
+		res := request(t, app, http.MethodPut, "/trips/"+repo.trip.ID.String()+"/marks/me", body, loginAs(t, app, natID))
+
+		if res.StatusCode != http.StatusNoContent {
+			t.Errorf("%s: status = %d, want 204 (reason ignored)", body, res.StatusCode)
+		}
+	}
+}
