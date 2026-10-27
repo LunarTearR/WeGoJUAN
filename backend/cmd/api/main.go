@@ -9,11 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
+
+	"WeGoJUAN-backend/internal/auth"
 	"WeGoJUAN-backend/internal/availability"
 	"WeGoJUAN-backend/internal/config"
-	"WeGoJUAN-backend/internal/event"
 	"WeGoJUAN-backend/internal/platform/postgres"
 	"WeGoJUAN-backend/internal/server"
+	"WeGoJUAN-backend/internal/trip"
 	"WeGoJUAN-backend/internal/user"
 )
 
@@ -45,19 +48,25 @@ func run() error {
 	defer db.Close() 
 
 	// ---------- 3. Wiring (manual dependency injection) ----------
+	authManager, err := auth.NewManager(cfg.JWTSecret, 7*24*time.Hour, cfg.Env != "development")
+	if err != nil {
+		return fmt.Errorf("init auth: %w", err)
+	}
+	requireAuth := []fiber.Handler{authManager.Require()}
+
 	userSvc := user.NewService(user.NewRepository(db))
 	availabilitySvc := availability.NewService(availability.NewRepository(db))
-
-	eventSvc := event.NewService(event.NewRepository(db), availabilitySvc)
+	tripSvc := trip.NewService(trip.NewRepository(db), availabilitySvc)
 
 	// ---------- 4. HTTP ----------
 	app := server.New(
 		server.Config{AllowedOrigins: cfg.AllowedOrigins},
 		logger,
 		db,
-		server.Mount{Prefix: "/users", Routes: user.NewHandler(userSvc)},
-		server.Mount{Prefix: "/availability", Routes: availability.NewHandler(availabilitySvc)},
-		server.Mount{Prefix: "/events", Routes: event.NewHandler(eventSvc)},
+		server.Mount{Prefix: "/users", Routes: user.NewHandler(userSvc, authManager)}, // auth ราย route เพราะ register/login ต้องเปิด
+		server.Mount{Prefix: "/availability", Routes: availability.NewHandler(availabilitySvc), Middleware: requireAuth},
+		server.Mount{Prefix: "/trips", Routes: trip.NewHandler(tripSvc, authManager)}, // auth ราย route ใน handler
+		server.Mount{Prefix: "/invites", Routes: trip.NewInviteHandler(tripSvc, authManager)},
 	)
 
 	// ---------- 5. Start & graceful shutdown ----------
