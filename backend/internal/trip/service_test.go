@@ -41,6 +41,8 @@ type fakeRepo struct {
 
 	offerAnswered map[uuid.UUID]time.Time
 
+	updated []Trip // Trip ที่ส่งเข้า UpdateDates
+
 	confirmCalls   int
 	confirmedStart *time.Time
 
@@ -112,6 +114,11 @@ func (r *fakeRepo) SetOfferAnswered(ctx context.Context, memberID uuid.UUID, sta
 	}
 	r.offerAnswered[memberID] = start
 	return nil
+}
+
+func (r *fakeRepo) UpdateDates(ctx context.Context, t Trip) (Trip, error) {
+	r.updated = append(r.updated, t)
+	return t, nil
 }
 
 func (r *fakeRepo) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {

@@ -31,6 +31,15 @@ type Trip struct {
 	CreatedAt    time.Time
 	// ConfirmedStart = วันแรกของ Confirmed Dates (nil = กำลังหาวัน)
 	ConfirmedStart *time.Time
+	// DateRangeChangedAt = ครั้งล่าสุดที่ Date Range ได้วันเพิ่ม (nil = ไม่เคย)
+	DateRangeChangedAt *time.Time
+}
+
+// DatesUpdate คือค่าที่ผู้จัดแก้ได้หลังสร้างทริป
+type DatesUpdate struct {
+	StartDate    time.Time
+	EndDate      time.Time
+	DurationDays int
 }
 
 // ConfirmedEnd คือวันสุดท้ายของ Confirmed Dates (nil ถ้ายังไม่ยืนยัน)
@@ -42,9 +51,14 @@ func (t Trip) ConfirmedEnd() *time.Time {
 	return &end
 }
 
+// windowFits: Window ที่เริ่ม start อยู่ใน Date Range ครบทุกวัน
+func (t Trip) windowFits(start time.Time) bool {
+	return !start.Before(t.StartDate) && !start.AddDate(0, 0, t.DurationDays-1).After(t.EndDate)
+}
+
 // isValidWindow: อยู่ใน Date Range ครบทั้ง Window และไม่เริ่มก่อนวันนี้
 func (t Trip) isValidWindow(start, today time.Time) bool {
-	return !start.Before(t.StartDate) && !start.AddDate(0, 0, t.DurationDays-1).After(t.EndDate) && !start.Before(today)
+	return t.windowFits(start) && !start.Before(today)
 }
 
 type NewTrip struct {

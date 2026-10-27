@@ -5,9 +5,11 @@ import { eachDay } from '@/lib/date'
 import { useTrip } from '@/features/trip/api/get-trip'
 import { ConfirmedDates } from '@/features/trip/components/confirmed-dates'
 import { ConfirmedOfferBanner } from '@/features/trip/components/confirmed-offer-banner'
+import { EditDatesForm } from '@/features/trip/components/edit-dates-form'
 import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
 import { PushPanel } from '@/features/trip/components/push-panel'
+import { RepushBanner } from '@/features/trip/components/repush-banner'
 import { ResyncBanner } from '@/features/trip/components/resync-banner'
 import { SuggestionList } from '@/features/trip/components/suggestion-list'
 import { TripMarksGrid } from '@/features/trip/components/trip-marks-grid'
@@ -21,6 +23,7 @@ export function TripDetailRoute() {
   const [pushOpen, setPushOpen] = useState(searchParams.get('push') === '1')
   // หลังตอบรับทำเครื่องหมายไม่ว่าง → ชวน re-sync ทริปอื่นที่เคย Push แล้วทับวันเหล่านั้น
   const [resyncDays, setResyncDays] = useState<string[]>([])
+  const [editingDates, setEditingDates] = useState(false)
 
   if (isPending) {
     return <p className="text-gray-500">กำลังโหลดทริป…</p>
@@ -40,7 +43,14 @@ export function TripDetailRoute() {
         <p className="text-sm text-gray-600">
           เลือกได้ {trip.start_date} ถึง {trip.end_date} · ไป {trip.duration_days} วัน
         </p>
+        {me.is_organizer && !editingDates && (
+          <button type="button" onClick={() => setEditingDates(true)} className="text-sm underline">
+            แก้ไขช่วงวัน
+          </button>
+        )}
       </div>
+      {editingDates && <EditDatesForm trip={trip} onDone={() => setEditingDates(false)} />}
+      {data.prompts.repush && !pushOpen && <RepushBanner onOpenPush={() => setPushOpen(true)} />}
       <ConfirmedDates trip={trip} members={members} isOrganizer={me.is_organizer} />
       {data.prompts.confirmed_offer && trip.confirmed_start && trip.confirmed_end && (
         <ConfirmedOfferBanner trip={trip} onAccepted={() => setResyncDays(eachDay(trip.confirmed_start!, trip.confirmed_end!))} />

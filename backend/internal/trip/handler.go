@@ -34,6 +34,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	// route ตายตัวต้องมาก่อน /:id ไม่งั้น "resync" ถูกจับเป็น id
 	r.Get("/resync", requireAuth, h.resync) // ?days=2026-12-05,2026-12-06
 	r.Get("/:id", optionalAuth, h.getByID)
+	r.Patch("/:id", optionalAuth, h.updateDates)
 	r.Get("/:id/marks", optionalAuth, h.marks)
 	r.Put("/:id/marks/me", optionalAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
 	r.Get("/:id/suggestions", optionalAuth, h.suggestions)
@@ -105,6 +106,12 @@ type pushDayResponse struct {
 	Day            string               `json:"day"`
 	TripStatus     *availability.Status `json:"trip_status"` // null = ยังไม่ระบุ
 	CalendarStatus *availability.Status `json:"calendar_status"`
+}
+
+type updateDatesRequest struct {
+	StartDate    string `json:"start_date"`
+	EndDate      string `json:"end_date"`
+	DurationDays int    `json:"duration_days"`
 }
 
 type confirmRequest struct {
@@ -356,6 +363,30 @@ func (h *Handler) push(c fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (h *Handler) updateDates(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	if err := requireJSON(c); err != nil {
+		return err
+	}
+	var req updateDatesRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	start, err1 := availability.ParseDay(req.StartDate)
+	end, err2 := availability.ParseDay(req.EndDate)
+	if err1 != nil || err2 != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "start_date and end_date must be YYYY-MM-DD")
+	}
+	t, err := h.svc.UpdateDates(c, tripID, viewerFrom(c), DatesUpdate{StartDate: start, EndDate: end, DurationDays: req.DurationDays})
+	if err != nil {
+		return tripError(err)
+	}
+	return c.JSON(newTripResponse(t))
+}
+
 func (h *Handler) confirm(c fiber.Ctx) error {
 	tripID, err := parseTripID(c)
 	if err != nil {
@@ -415,7 +446,7 @@ func tripError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, err.Error())
 	case errors.Is(err, ErrGuestNotAllowed), errors.Is(err, ErrNotOrganizer):
 		return fiber.NewError(fiber.StatusForbidden, err.Error())
-	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed):
+	case errors.Is(err, ErrInvalidWindow), errors.Is(err, ErrNotConfirmed), errors.Is(err, ErrInvalidTrip):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, ErrDayOutOfRange), errors.Is(err, availability.ErrInvalidDay):
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())

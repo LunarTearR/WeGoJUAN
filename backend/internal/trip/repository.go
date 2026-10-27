@@ -23,14 +23,14 @@ func NewRepository(db *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-const tripColumns = `id, organizer_id, title, start_date, end_date, duration_days, invite_code, created_at, confirmed_start`
+const tripColumns = `id, organizer_id, title, start_date, end_date, duration_days, invite_code, created_at, confirmed_start, date_range_changed_at`
 
 // tripColumnsT เหมือน tripColumns แต่ระบุ alias t. สำหรับ query ที่ join กับ trip_members
-const tripColumnsT = `t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at, t.confirmed_start`
+const tripColumnsT = `t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at, t.confirmed_start, t.date_range_changed_at`
 
 func scanTrip(row pgx.Row) (Trip, error) {
 	var t Trip
-	err := row.Scan(&t.ID, &t.OrganizerID, &t.Title, &t.StartDate, &t.EndDate, &t.DurationDays, &t.InviteCode, &t.CreatedAt, &t.ConfirmedStart)
+	err := row.Scan(&t.ID, &t.OrganizerID, &t.Title, &t.StartDate, &t.EndDate, &t.DurationDays, &t.InviteCode, &t.CreatedAt, &t.ConfirmedStart, &t.DateRangeChangedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Trip{}, ErrNotFound
 	}
@@ -256,4 +256,14 @@ func (r *PostgresRepository) SetConfirmed(ctx context.Context, tripID uuid.UUID,
 func (r *PostgresRepository) SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error {
 	_, err := r.db.Exec(ctx, `UPDATE trip_members SET offer_answered_start = $2 WHERE id = $1`, memberID, start)
 	return err
+}
+
+func (r *PostgresRepository) UpdateDates(ctx context.Context, t Trip) (Trip, error) {
+	// ตั้ง confirmed_start ใน UPDATE เดียวกับวันใหม่ ไม่งั้น CHECK trips_confirmed_fits ล้มกลางทาง
+	return scanTrip(r.db.QueryRow(ctx, `
+		UPDATE trips
+		SET start_date = $2, end_date = $3, duration_days = $4, confirmed_start = $5, date_range_changed_at = $6
+		WHERE id = $1
+		RETURNING `+tripColumns,
+		t.ID, t.StartDate, t.EndDate, t.DurationDays, t.ConfirmedStart, t.DateRangeChangedAt))
 }
