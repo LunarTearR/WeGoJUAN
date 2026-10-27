@@ -1,13 +1,27 @@
 import { useState } from 'react'
+import { useReplaceInviteLink } from '../api/manage-trip'
+
+type InviteLinkBoxProps = {
+  tripId: string
+  code: string
+  canReplace: boolean // ผู้จัดสร้างลิงก์ใหม่ได้ (ลิงก์เก่าใช้ไม่ได้ทันที)
+}
 
 // ลิงก์เชิญคือกุญแจเข้าทริป — ใครได้ลิงก์ก็เข้าร่วมได้ทันที
-export function InviteLinkBox({ code }: { code: string }) {
+export function InviteLinkBox({ tripId, code, canReplace }: InviteLinkBoxProps) {
   const url = `${window.location.origin}/join/${code}`
   const [copied, setCopied] = useState(false)
+  const replaceMutation = useReplaceInviteLink(tripId)
 
   async function copy() {
     await navigator.clipboard.writeText(url)
     setCopied(true)
+  }
+
+  function replace() {
+    if (window.confirm('สร้างลิงก์ใหม่? ลิงก์เดิมจะใช้ไม่ได้ทันที')) {
+      replaceMutation.mutate(undefined, { onSuccess: () => setCopied(false) })
+    }
   }
 
   return (
@@ -19,6 +33,11 @@ export function InviteLinkBox({ code }: { code: string }) {
           {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
         </button>
       </div>
+      {canReplace && (
+        <button type="button" disabled={replaceMutation.isPending} onClick={replace} className="text-xs underline">
+          สร้างลิงก์ใหม่
+        </button>
+      )}
     </div>
   )
 }

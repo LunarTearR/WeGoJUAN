@@ -36,6 +36,32 @@ type fakeRepo struct {
 	savedFor   uuid.UUID
 	savedSet   []availability.Mark
 	savedClear []time.Time
+
+	pushedAt map[uuid.UUID]time.Time
+
+	offerAnswered map[uuid.UUID]time.Time
+
+	updated []Trip // Trip ที่ส่งเข้า UpdateDates
+
+	claimCalls  int
+	claimedFor  uuid.UUID
+	claimedHash string
+	claimN      int
+
+	codes          map[string]Trip // nil = ใช้ byCode/byCodeErr
+	setCodes       []string
+	deleteErr      error
+	deletedMembers []uuid.UUID
+	deletedTrips   []uuid.UUID
+
+	confirmCalls   int
+	confirmedStart *time.Time
+
+	resyncTrips []Trip
+	resyncDays  []time.Time
+	resyncCalls int
+
+	cal *fakeCalendar // ปฏิทินส่วนตัวของ User (ใช้ตอน Push / ตอบรับวันที่ยืนยัน)
 }
 
 type addedGuest struct {
@@ -93,6 +119,67 @@ func (r *fakeRepo) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UU
 	return r.marks, nil
 }
 
+func (r *fakeRepo) SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error {
+	if r.offerAnswered == nil {
+		r.offerAnswered = map[uuid.UUID]time.Time{}
+	}
+	r.offerAnswered[memberID] = start
+	return nil
+}
+
+func (r *fakeRepo) UpdateDates(ctx context.Context, t Trip) (Trip, error) {
+	r.updated = append(r.updated, t)
+	return t, nil
+}
+
+func (r *fakeRepo) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {
+	r.confirmCalls++
+	r.confirmedStart = start
+	return nil
+}
+
+func (r *fakeRepo) ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
+	r.resyncCalls++
+	r.resyncDays = days
+	return r.resyncTrips, nil
+}
+
+func (r *fakeRepo) SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error {
+	if r.pushedAt == nil {
+		r.pushedAt = map[uuid.UUID]time.Time{}
+	}
+	r.pushedAt[memberID] = at
+	return nil
+}
+
+// fakeCalendar แทน availability.Service — เก็บ Mark ของ User คนเดียว
+type fakeCalendar struct {
+	marks []availability.Mark
+
+	listedFor  string
+	setFor     string
+	setMarks   []availability.Mark
+	clearMarks []time.Time
+	setCalls   int
+}
+
+func (c *fakeCalendar) ListByUser(ctx context.Context, userID string, from, to time.Time) ([]availability.Mark, error) {
+	c.listedFor = userID
+	var out []availability.Mark
+	for _, m := range c.marks {
+		if !m.Day.Before(from) && !m.Day.After(to) {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+func (c *fakeCalendar) SetMarks(ctx context.Context, userID string, set []availability.Mark, clear []time.Time) error {
+	c.setCalls++
+	c.setFor, c.setMarks, c.clearMarks = userID, set, clear
+	return nil
+}
+
 func (r *fakeRepo) SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error {
 	r.saveCalls++
 	r.savedFor, r.savedSet, r.savedClear = memberID, set, clear
@@ -100,7 +187,45 @@ func (r *fakeRepo) SaveMarks(ctx context.Context, memberID uuid.UUID, set []avai
 }
 
 func (r *fakeRepo) FindByInviteCode(ctx context.Context, code string) (Trip, error) {
+	if r.codes != nil { // test ที่สนใจว่าลิงก์ไหนยังใช้ได้
+		if t, ok := r.codes[code]; ok {
+			return t, nil
+		}
+		return Trip{}, ErrNotFound
+	}
 	return r.byCode, r.byCodeErr
+}
+
+func (r *fakeRepo) ClaimGuest(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error) {
+	r.claimCalls++
+	r.claimedFor, r.claimedHash = userID, guestTokenHash
+	return r.claimN, nil
+}
+
+func (r *fakeRepo) SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error {
+	r.setCodes = append(r.setCodes, code)
+	if r.codes != nil {
+		for c, t := range r.codes {
+			if t.ID == tripID {
+				delete(r.codes, c)
+			}
+		}
+		r.codes[code] = r.trip
+	}
+	return nil
+}
+
+func (r *fakeRepo) DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error {
+	if r.deleteErr != nil {
+		return r.deleteErr
+	}
+	r.deletedMembers = append(r.deletedMembers, memberID)
+	return nil
+}
+
+func (r *fakeRepo) Delete(ctx context.Context, tripID uuid.UUID) error {
+	r.deletedTrips = append(r.deletedTrips, tripID)
+	return nil
 }
 
 func (r *fakeRepo) AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error) {
@@ -126,7 +251,10 @@ func mustDay(t *testing.T, s string) time.Time {
 }
 
 func newTestService(repo *fakeRepo, now time.Time) *Service {
-	s := NewService(repo)
+	if repo.cal == nil {
+		repo.cal = &fakeCalendar{}
+	}
+	s := NewService(repo, repo.cal)
 	s.now = func() time.Time { return now }
 	return s
 }

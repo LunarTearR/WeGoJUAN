@@ -10,6 +10,8 @@ export type Trip = {
   duration_days: number
   organizer_id: string
   invite_code: string
+  confirmed_start: ISODate | null // null = กำลังหาวัน (Finding Dates)
+  confirmed_end: ISODate | null
 }
 
 // ตรงกับ memberResponse ฝั่ง Go
@@ -24,6 +26,11 @@ export type TripDetail = {
   trip: Trip
   members: Member[]
   me: Member
+  // สิ่งที่ควรถามคนนี้ตอนเปิดทริป (Guest เป็น false เสมอ)
+  prompts: {
+    repush: boolean
+    confirmed_offer: boolean
+  }
 }
 
 export type NewTripInput = {
@@ -62,4 +69,11 @@ export type Suggestion = {
   available: string[] // member ID
   busy: string[]
   unknown: string[]
+}
+
+// ตรงกับ pushDayResponse ฝั่ง Go — เฉพาะวันที่ทริปกับปฏิทินส่วนตัวไม่ตรงกัน (null = ยังไม่ระบุ)
+export type PushDay = {
+  day: ISODate
+  trip_status: Status | null
+  calendar_status: Status | null
 }

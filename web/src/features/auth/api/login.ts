@@ -15,6 +15,10 @@ export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: login,
-    onSuccess: (me) => queryClient.setQueryData(['me'], me),
+    onSuccess: (me) => {
+      queryClient.setQueryData(['me'], me)
+      // ข้อมูลที่ cache ไว้ตอนเป็น Guest/ไม่ได้ login ไม่ตรงกับตัวตนใหม่แล้ว
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'me' })
+    },
   })
 }

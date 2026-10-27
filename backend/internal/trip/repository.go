@@ -23,11 +23,14 @@ func NewRepository(db *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 
-const tripColumns = `id, organizer_id, title, start_date, end_date, duration_days, invite_code, created_at`
+const tripColumns = `id, organizer_id, title, start_date, end_date, duration_days, invite_code, created_at, confirmed_start, date_range_changed_at`
+
+// tripColumnsT เหมือน tripColumns แต่ระบุ alias t. สำหรับ query ที่ join กับ trip_members
+const tripColumnsT = `t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at, t.confirmed_start, t.date_range_changed_at`
 
 func scanTrip(row pgx.Row) (Trip, error) {
 	var t Trip
-	err := row.Scan(&t.ID, &t.OrganizerID, &t.Title, &t.StartDate, &t.EndDate, &t.DurationDays, &t.InviteCode, &t.CreatedAt)
+	err := row.Scan(&t.ID, &t.OrganizerID, &t.Title, &t.StartDate, &t.EndDate, &t.DurationDays, &t.InviteCode, &t.CreatedAt, &t.ConfirmedStart, &t.DateRangeChangedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Trip{}, ErrNotFound
 	}
@@ -62,7 +65,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id uuid.UUID) (Trip, 
 
 func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]Trip, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT t.id, t.organizer_id, t.title, t.start_date, t.end_date, t.duration_days, t.invite_code, t.created_at
+		SELECT `+tripColumnsT+`
 		FROM trips t
 		JOIN trip_members m ON m.trip_id = t.id
 		WHERE m.user_id = $1
@@ -83,12 +86,12 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID) (
 	return trips, rows.Err()
 }
 
-const memberColumns = `id, trip_id, user_id, display_name, joined_at`
+const memberColumns = `id, trip_id, user_id, display_name, joined_at, pushed_at, offer_answered_start`
 
 func scanMember(row pgx.Row) (Member, error) {
 	var m Member
 	var userID *uuid.UUID // NULL = Guest
-	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt)
+	err := row.Scan(&m.ID, &m.TripID, &userID, &m.DisplayName, &m.JoinedAt, &m.PushedAt, &m.OfferAnsweredStart)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Member{}, ErrNotFound
 	}
@@ -214,4 +217,99 @@ func (r *PostgresRepository) AddGuestMember(ctx context.Context, tripID uuid.UUI
 		}
 	}
 	return m, err
+}
+
+func (r *PostgresRepository) SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error {
+	_, err := r.db.Exec(ctx, `UPDATE trip_members SET pushed_at = $2 WHERE id = $1`, memberID, at)
+	return err
+}
+
+func (r *PostgresRepository) ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT `+tripColumnsT+`
+		FROM trips t
+		JOIN trip_members m ON m.trip_id = t.id
+		WHERE m.user_id = $1 AND m.pushed_at IS NOT NULL
+		  AND EXISTS (SELECT 1 FROM unnest($2::date[]) AS d WHERE d BETWEEN t.start_date AND t.end_date)
+		ORDER BY t.start_date, t.id`, userID, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	trips := []Trip{}
+	for rows.Next() {
+		t, err := scanTrip(rows)
+		if err != nil {
+			return nil, err
+		}
+		trips = append(trips, t)
+	}
+	return trips, rows.Err()
+}
+
+func (r *PostgresRepository) SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error {
+	_, err := r.db.Exec(ctx, `UPDATE trips SET confirmed_start = $2 WHERE id = $1`, tripID, start)
+	return err
+}
+
+func (r *PostgresRepository) SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error {
+	_, err := r.db.Exec(ctx, `UPDATE trip_members SET offer_answered_start = $2 WHERE id = $1`, memberID, start)
+	return err
+}
+
+func (r *PostgresRepository) UpdateDates(ctx context.Context, t Trip) (Trip, error) {
+	var updated Trip
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		// ตั้ง confirmed_start ใน UPDATE เดียวกับวันใหม่ ไม่งั้น CHECK trips_confirmed_fits ล้มกลางทาง
+		var err error
+		updated, err = scanTrip(tx.QueryRow(ctx, `
+			UPDATE trips
+			SET start_date = $2, end_date = $3, duration_days = $4, confirmed_start = $5, date_range_changed_at = $6
+			WHERE id = $1
+			RETURNING `+tripColumns,
+			t.ID, t.StartDate, t.EndDate, t.DurationDays, t.ConfirmedStart, t.DateRangeChangedAt))
+		if err != nil {
+			return err
+		}
+		// Mark นอกช่วงใหม่ทิ้งเลย — ขยายช่วงกลับมาทีหลัง วันนั้นต้องเริ่มเป็น Unknown ไม่ใช่ Mark เก่าโผล่กลับมา
+		_, err = tx.Exec(ctx, `
+			DELETE FROM trip_marks k USING trip_members m
+			WHERE k.member_id = m.id AND m.trip_id = $1 AND (k.day < $2 OR k.day > $3)`,
+			t.ID, t.StartDate, t.EndDate)
+		return err
+	})
+	return updated, err
+}
+
+func (r *PostgresRepository) SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error {
+	_, err := r.db.Exec(ctx, `UPDATE trips SET invite_code = $2 WHERE id = $1`, tripID, code)
+	return err
+}
+
+func (r *PostgresRepository) DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, `DELETE FROM trip_members WHERE trip_id = $1 AND id = $2`, tripID, memberID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PostgresRepository) Delete(ctx context.Context, tripID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM trips WHERE id = $1`, tripID)
+	return err
+}
+
+func (r *PostgresRepository) ClaimGuest(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error) {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE trip_members SET user_id = $1, guest_token_hash = NULL
+		WHERE guest_token_hash = $2
+		  AND trip_id NOT IN (SELECT trip_id FROM trip_members WHERE user_id = $1)`, userID, guestTokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
 }

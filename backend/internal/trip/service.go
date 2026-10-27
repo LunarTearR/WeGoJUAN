@@ -40,15 +40,37 @@ type Repository interface {
 	ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error)
 	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
 	SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error
+	SetPushedAt(ctx context.Context, memberID uuid.UUID, at time.Time) error
+	// SetConfirmed: nil = ยกเลิก Confirmed Dates
+	SetConfirmed(ctx context.Context, tripID uuid.UUID, start *time.Time) error
+	// UpdateDates บันทึกวัน, Duration, Confirmed Dates และ DateRangeChangedAt ใน UPDATE เดียว
+	UpdateDates(ctx context.Context, t Trip) (Trip, error)
+	SetInviteCode(ctx context.Context, tripID uuid.UUID, code string) error
+	// DeleteMember: ErrNotFound ถ้าไม่มีสมาชิกคนนี้ในทริปนี้
+	DeleteMember(ctx context.Context, tripID, memberID uuid.UUID) error
+	Delete(ctx context.Context, tripID uuid.UUID) error
+	// ClaimGuest เปลี่ยนสมาชิก Guest ของเครื่องนี้เป็นของ User (ข้ามทริปที่ User เป็นสมาชิกอยู่แล้ว) คืนจำนวนที่เปลี่ยน
+	ClaimGuest(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error)
+	SetOfferAnswered(ctx context.Context, memberID uuid.UUID, start time.Time) error
+	// ListPushedOverlapping คืนทริปที่ User คนนี้เคย Push และ Date Range มีวันใดวันหนึ่งใน days
+	ListPushedOverlapping(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error)
+}
+
+// Calendar คือปฏิทินส่วนตัวของ User (availability.Service) — ทริปแตะได้เฉพาะตอนเจ้าของกดเอง (Push)
+// ไม่เคยอ่านสดๆ มาคำนวณ ดู docs/adr/0001
+type Calendar interface {
+	ListByUser(ctx context.Context, userID string, from, to time.Time) ([]availability.Mark, error)
+	SetMarks(ctx context.Context, userID string, set []availability.Mark, clear []time.Time) error
 }
 
 type Service struct {
 	repo Repository
+	cal  Calendar
 	now  func() time.Time // test เปลี่ยนเพื่อกำหนด "วันนี้"
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo, now: time.Now}
+func NewService(repo Repository, cal Calendar) *Service {
+	return &Service{repo: repo, cal: cal, now: time.Now}
 }
 
 func (s *Service) Create(ctx context.Context, organizerID uuid.UUID, in NewTrip) (Trip, error) {
@@ -89,7 +111,79 @@ func (s *Service) Get(ctx context.Context, tripID uuid.UUID, v Viewer) (Detail, 
 	if err != nil {
 		return Detail{}, err
 	}
-	return Detail{Trip: t, Members: members, Me: me}, nil
+	return Detail{Trip: t, Members: members, Me: me, Prompts: promptsFor(t, me)}, nil
+}
+
+func promptsFor(t Trip, me Member) Prompts {
+	if me.IsGuest() {
+		return Prompts{} // Guest ไม่มีปฏิทินส่วนตัว
+	}
+	offer := t.ConfirmedStart != nil && (me.OfferAnsweredStart == nil || !me.OfferAnsweredStart.Equal(*t.ConfirmedStart))
+	repush := me.PushedAt != nil && t.DateRangeChangedAt != nil && t.DateRangeChangedAt.After(*me.PushedAt)
+	return Prompts{Repush: repush, ConfirmedOffer: offer}
+}
+
+// UpdateDates แก้ Date Range / Duration — ผู้จัดเท่านั้น
+// Confirmed Dates ที่ไม่พอดีกับช่วงใหม่ (หรือ Duration เปลี่ยน) ถูกยกเลิกในการแก้ครั้งเดียวกัน; ขยายช่วง (มีวันใหม่) = ชวนคนที่เคย Push ให้ Push อีกครั้ง
+func (s *Service) UpdateDates(ctx context.Context, tripID uuid.UUID, v Viewer, in DatesUpdate) (Trip, error) {
+	t, _, err := s.asOrganizer(ctx, tripID, v)
+	if err != nil {
+		return Trip{}, err
+	}
+	// วันเริ่มที่ผ่านไปแล้วคงไว้ได้ (ทริปเริ่มไปแล้ว) แต่ห้ามเลื่อนวันเริ่มไปเป็นอดีต
+	today := Today(s.now())
+	if in.StartDate.Equal(t.StartDate) && in.StartDate.Before(today) {
+		today = in.StartDate
+	}
+	if err := validateNewTrip(NewTrip{Title: t.Title, StartDate: in.StartDate, EndDate: in.EndDate, DurationDays: in.DurationDays}, today); err != nil {
+		return Trip{}, err
+	}
+
+	addsDays := in.StartDate.Before(t.StartDate) || in.EndDate.After(t.EndDate)
+	// Window ยาวเท่า Duration เสมอ — เปลี่ยน Duration แล้ว Window ที่ผู้จัดเลือกไว้ไม่มีอยู่จริงอีกต่อไป
+	durationChanged := in.DurationDays != t.DurationDays
+	t.StartDate, t.EndDate, t.DurationDays = in.StartDate, in.EndDate, in.DurationDays
+	if t.ConfirmedStart != nil && (durationChanged || !t.windowFits(*t.ConfirmedStart)) {
+		t.ConfirmedStart = nil
+	}
+	if addsDays {
+		now := s.now()
+		t.DateRangeChangedAt = &now
+	}
+	return s.repo.UpdateDates(ctx, t)
+}
+
+// AnswerConfirmedOffer: accept = เขียนไม่ว่างทุกวันใน Confirmed Dates ลงปฏิทินส่วนตัว (User ยินยอมเอง)
+// ตอบแล้วไม่ถามซ้ำจนกว่าผู้จัดจะเปลี่ยนวัน — ไม่เคยลบไม่ว่างเดิมออก
+func (s *Service) AnswerConfirmedOffer(ctx context.Context, tripID uuid.UUID, v Viewer, accept bool, shownStart time.Time) error {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	if me.IsGuest() {
+		return ErrGuestNotAllowed
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+	if t.ConfirmedStart == nil {
+		return ErrNotConfirmed
+	}
+	// ผู้จัดเปลี่ยนวันระหว่างที่หน้ายังเปิดอยู่ → ไม่เขียนวันที่ User ไม่เคยเห็น
+	if !t.ConfirmedStart.Equal(shownStart) {
+		return ErrConfirmedChanged
+	}
+	if accept {
+		var busy []availability.Mark
+		for d := *t.ConfirmedStart; !d.After(*t.ConfirmedEnd()); d = d.AddDate(0, 0, 1) {
+			busy = append(busy, availability.Mark{Day: d, Status: availability.StatusBusy})
+		}
+		if err := s.cal.SetMarks(ctx, me.UserID.String(), busy, nil); err != nil {
+			return err
+		}
+	}
+	return s.repo.SetOfferAnswered(ctx, me.ID, *t.ConfirmedStart)
 }
 
 // Preview คืนข้อมูลทริปจากลิงก์เชิญ ให้คนที่ยังไม่ได้เข้าร่วมเห็นว่ากำลังจะเข้าทริปอะไร (ไม่มี Mark/สมาชิก)
@@ -216,6 +310,111 @@ func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) (
 		ids[i] = m.ID
 	}
 	return SuggestWindows(ids, marks, from, t.EndDate, t.DurationDays), nil
+}
+
+// Confirm ตั้ง Confirmed Dates เป็น Window ที่เริ่ม start — ผู้จัดเท่านั้น
+func (s *Service) Confirm(ctx context.Context, tripID uuid.UUID, v Viewer, start time.Time) (Trip, error) {
+	t, _, err := s.asOrganizer(ctx, tripID, v)
+	if err != nil {
+		return Trip{}, err
+	}
+	if !t.isValidWindow(start, Today(s.now())) {
+		return Trip{}, ErrInvalidWindow
+	}
+	if err := s.repo.SetConfirmed(ctx, tripID, &start); err != nil {
+		return Trip{}, err
+	}
+	t.ConfirmedStart = &start
+	return t, nil
+}
+
+// ClearConfirmed ยกเลิก Confirmed Dates → ทริปกลับไปเป็นกำลังหาวัน
+func (s *Service) ClearConfirmed(ctx context.Context, tripID uuid.UUID, v Viewer) error {
+	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+		return err
+	}
+	return s.repo.SetConfirmed(ctx, tripID, nil)
+}
+
+// asOrganizer คืนทริปและสมาชิกของผู้จัดถ้า viewer เป็นผู้จัด — สมาชิกคนอื่นได้ ErrNotOrganizer คนนอกได้ ErrNotFound
+func (s *Service) asOrganizer(ctx context.Context, tripID uuid.UUID, v Viewer) (Trip, Member, error) {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	if me.IsGuest() || me.UserID != t.OrganizerID {
+		return Trip{}, Member{}, ErrNotOrganizer
+	}
+	return t, me, nil
+}
+
+// RemoveMember นำสมาชิกคนอื่นออก — Mark ในทริปของคนนั้นหายไปด้วย ชื่อว่างให้คนอื่นใช้ได้ เข้าใหม่ผ่านลิงก์ปัจจุบันได้
+func (s *Service) RemoveMember(ctx context.Context, tripID uuid.UUID, v Viewer, memberID uuid.UUID) error {
+	_, me, err := s.asOrganizer(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	if memberID == me.ID {
+		return ErrCannotRemoveSelf
+	}
+	return s.repo.DeleteMember(ctx, tripID, memberID)
+}
+
+// Leave ออกจากทริปเอง (User หรือ Guest) — Mark ในทริปหายไปด้วย ผู้จัดออกไม่ได้ ต้องลบทริปแทน
+func (s *Service) Leave(ctx context.Context, tripID uuid.UUID, v Viewer) error {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+	if !me.IsGuest() && me.UserID == t.OrganizerID {
+		return ErrOrganizerCannotLeave
+	}
+	return s.repo.DeleteMember(ctx, tripID, me.ID)
+}
+
+// ReplaceInviteLink สุ่มลิงก์เชิญใหม่ — ลิงก์เก่าใช้ไม่ได้ทันที
+func (s *Service) ReplaceInviteLink(ctx context.Context, tripID uuid.UUID, v Viewer) (string, error) {
+	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+		return "", err
+	}
+	code, err := newInviteCode()
+	if err != nil {
+		return "", err
+	}
+	return code, s.repo.SetInviteCode(ctx, tripID, code)
+}
+
+// Delete ลบทริปทั้งหมด (สมาชิกและ Mark หายไปด้วย)
+func (s *Service) Delete(ctx context.Context, tripID uuid.UUID, v Viewer) error {
+	if _, _, err := s.asOrganizer(ctx, tripID, v); err != nil {
+		return err
+	}
+	return s.repo.Delete(ctx, tripID)
+}
+
+// ClaimGuestMemberships: Guest ที่สมัคร/login บนเครื่องเดิมได้ที่นั่งและ Mark ในทุกทริปของเครื่องนี้มาเป็นของบัญชี
+// หลังจากนี้เปิดจากเครื่องไหนก็ได้ — ทริปที่ User เป็นสมาชิกอยู่แล้วถูกข้าม (ยังเข้าได้ผ่าน findMember fallback)
+func (s *Service) ClaimGuestMemberships(ctx context.Context, userID uuid.UUID, guestTokenHash string) (int, error) {
+	if guestTokenHash == "" {
+		return 0, nil
+	}
+	return s.repo.ClaimGuest(ctx, userID, guestTokenHash)
+}
+
+// TripsToResync: แก้ปฏิทินส่วนตัววันไหนไป ทริปไหนที่เคย Push แล้วทับวันนั้นควรได้รับการชวน re-sync
+func (s *Service) TripsToResync(ctx context.Context, userID uuid.UUID, days []time.Time) ([]Trip, error) {
+	if len(days) == 0 {
+		return nil, nil
+	}
+	return s.repo.ListPushedOverlapping(ctx, userID, days)
 }
 
 // findMember หาสมาชิกจาก User ก่อน ถ้าไม่เจอแต่เครื่องนี้เคยเข้าทริปแบบ Guest ก็ใช้สมาชิก Guest นั้น

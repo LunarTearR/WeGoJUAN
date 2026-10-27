@@ -56,7 +56,7 @@ func run() error {
 
 	userSvc := user.NewService(user.NewRepository(db))
 	availabilitySvc := availability.NewService(availability.NewRepository(db))
-	tripSvc := trip.NewService(trip.NewRepository(db))
+	tripSvc := trip.NewService(trip.NewRepository(db), availabilitySvc)
 
 	// ---------- 4. HTTP ----------
 	app := server.New(
