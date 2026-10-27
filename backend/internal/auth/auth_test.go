@@ -179,3 +179,45 @@ func TestLogout_ExpiresCookie(t *testing.T) {
 		t.Errorf("cookie not expired: MaxAge=%d Expires=%v", ck.MaxAge, ck.Expires)
 	}
 }
+
+func newOptionalApp(m *auth.Manager) *fiber.App {
+	app := newApp(m)
+	app.Get("/maybe", m.Optional(), func(c fiber.Ctx) error {
+		return c.SendString("user=" + auth.UserID(c))
+	})
+	return app
+}
+
+func TestOptional_ValidCookie_SetsUserID(t *testing.T) {
+	app := newOptionalApp(newManager(t, testSecret, time.Hour, false))
+	ck := sessionCookie(t, do(t, app, http.MethodPost, "/login"))
+
+	res := do(t, app, http.MethodGet, "/maybe", ck)
+
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK || string(body) != "user=user-1" {
+		t.Errorf("status = %d body = %q, want 200 user=user-1", res.StatusCode, body)
+	}
+}
+
+func TestOptional_NoCookie_PassesThrough(t *testing.T) {
+	app := newOptionalApp(newManager(t, testSecret, time.Hour, false))
+
+	res := do(t, app, http.MethodGet, "/maybe")
+
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK || string(body) != "user=" {
+		t.Errorf("status = %d body = %q, want 200 user=", res.StatusCode, body)
+	}
+}
+
+func TestOptional_BadCookie_PassesThrough(t *testing.T) {
+	app := newOptionalApp(newManager(t, testSecret, time.Hour, false))
+
+	res := do(t, app, http.MethodGet, "/maybe", &http.Cookie{Name: auth.CookieName, Value: "garbage"})
+
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK || string(body) != "user=" {
+		t.Errorf("status = %d body = %q, want 200 user=", res.StatusCode, body)
+	}
+}

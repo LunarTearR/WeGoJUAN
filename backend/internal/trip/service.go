@@ -1,0 +1,262 @@
+package trip
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+	"unicode/utf8"
+
+	"github.com/google/uuid"
+
+	"WeGoJUAN-backend/internal/availability"
+)
+
+const (
+	maxTitleRunes       = 100
+	maxRangeDays        = 365
+	maxDisplayNameRunes = 50
+)
+
+type Repository interface {
+	// Create insert ทริปและแถวสมาชิกของผู้จัดใน transaction เดียว (ชื่อเอาจาก users.display_name)
+	Create(ctx context.Context, t Trip) (Trip, error)
+	FindByID(ctx context.Context, id uuid.UUID) (Trip, error)
+	// ListByUser คืนทริปที่ user เป็นสมาชิก ใหม่สุดก่อน
+	ListByUser(ctx context.Context, userID uuid.UUID) ([]Trip, error)
+	// FindMember คืนสมาชิกของ viewer ในทริปนี้ หรือ ErrNotFound ถ้าไม่ได้เป็นสมาชิก
+	FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error)
+	// Members เรียงตามเวลาเข้าร่วม
+	Members(ctx context.Context, tripID uuid.UUID) ([]Member, error)
+	FindByInviteCode(ctx context.Context, code string) (Trip, error)
+	// AddUserMember: displayName "" = ใช้ users.display_name; ชื่อชนในทริป → ErrDisplayNameTaken
+	AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error)
+	// AddGuestMember: ชื่อชนในทริป → ErrDisplayNameTaken
+	AddGuestMember(ctx context.Context, tripID uuid.UUID, guestTokenHash, displayName string) (Member, error)
+	// ListMarks คืน member ID → Mark ของคนนั้น เฉพาะวันใน Date Range
+	ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error)
+	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
+	SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error
+}
+
+type Service struct {
+	repo Repository
+	now  func() time.Time // test เปลี่ยนเพื่อกำหนด "วันนี้"
+}
+
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo, now: time.Now}
+}
+
+func (s *Service) Create(ctx context.Context, organizerID uuid.UUID, in NewTrip) (Trip, error) {
+	in.Title = strings.TrimSpace(in.Title)
+	if err := validateNewTrip(in, Today(s.now())); err != nil {
+		return Trip{}, err
+	}
+
+	code, err := newInviteCode()
+	if err != nil {
+		return Trip{}, err
+	}
+	return s.repo.Create(ctx, Trip{
+		OrganizerID:  organizerID,
+		Title:        in.Title,
+		StartDate:    in.StartDate,
+		EndDate:      in.EndDate,
+		DurationDays: in.DurationDays,
+		InviteCode:   code,
+	})
+}
+
+func (s *Service) ListMine(ctx context.Context, userID uuid.UUID) ([]Trip, error) {
+	return s.repo.ListByUser(ctx, userID)
+}
+
+// Get คืนทริปเฉพาะสมาชิก — คนนอกได้ ErrNotFound เหมือนไม่มีทริปนี้
+func (s *Service) Get(ctx context.Context, tripID uuid.UUID, v Viewer) (Detail, error) {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return Detail{}, err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return Detail{}, err
+	}
+	members, err := s.repo.Members(ctx, tripID)
+	if err != nil {
+		return Detail{}, err
+	}
+	return Detail{Trip: t, Members: members, Me: me}, nil
+}
+
+// Preview คืนข้อมูลทริปจากลิงก์เชิญ ให้คนที่ยังไม่ได้เข้าร่วมเห็นว่ากำลังจะเข้าทริปอะไร (ไม่มี Mark/สมาชิก)
+func (s *Service) Preview(ctx context.Context, code string, v Viewer) (Trip, bool, error) {
+	t, err := s.repo.FindByInviteCode(ctx, code)
+	if err != nil {
+		return Trip{}, false, err
+	}
+	_, err = s.findMember(ctx, t.ID, v)
+	switch {
+	case err == nil:
+		return t, true, nil
+	case errors.Is(err, ErrNotFound):
+		return t, false, nil
+	default:
+		return Trip{}, false, err
+	}
+}
+
+// JoinAsUser เข้าร่วมทริปทันทีไม่ต้องรออนุมัติ — เป็นสมาชิกอยู่แล้วก็คืนสมาชิกเดิม
+func (s *Service) JoinAsUser(ctx context.Context, code string, v Viewer, displayName string) (Trip, Member, error) {
+	displayName = strings.TrimSpace(displayName)
+	if displayName != "" {
+		if err := validateDisplayName(displayName); err != nil {
+			return Trip{}, Member{}, err
+		}
+	}
+
+	t, err := s.repo.FindByInviteCode(ctx, code)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	m, err := s.findMember(ctx, t.ID, v)
+	if err == nil {
+		return t, m, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return Trip{}, Member{}, err
+	}
+	m, err = s.repo.AddUserMember(ctx, t.ID, v.UserID, displayName)
+	return t, m, err
+}
+
+// Marks คืน Mark ของทุกสมาชิก — สมาชิกเห็นของกันและกันทั้งหมด คนนอกได้ ErrNotFound
+func (s *Service) Marks(ctx context.Context, tripID uuid.UUID, v Viewer) (map[uuid.UUID][]availability.Mark, error) {
+	if _, err := s.findMember(ctx, tripID, v); err != nil {
+		return nil, err
+	}
+	return s.repo.ListMarks(ctx, tripID)
+}
+
+// SetMyMarks แก้ Mark ของตัวเองในทริป (แก้ได้แค่ของตัวเอง และเฉพาะวันใน Date Range)
+func (s *Service) SetMyMarks(ctx context.Context, tripID uuid.UUID, v Viewer, set []availability.Mark, clear []time.Time) error {
+	me, err := s.findMember(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+	for _, m := range set {
+		if !m.Status.Valid() {
+			return fmt.Errorf("%w: %q", availability.ErrInvalidStatus, m.Status)
+		}
+		if !t.inDateRange(m.Day) {
+			return fmt.Errorf("%w: %s", ErrDayOutOfRange, m.Day.Format(time.DateOnly))
+		}
+	}
+	for _, d := range clear {
+		if !t.inDateRange(d) {
+			return fmt.Errorf("%w: %s", ErrDayOutOfRange, d.Format(time.DateOnly))
+		}
+	}
+	return s.repo.SaveMarks(ctx, me.ID, set, clear)
+}
+
+// JoinAsGuest เข้าร่วมโดยไม่มีบัญชี ต้องตั้งชื่อเสมอ — เครื่องเดิมเข้าซ้ำได้สมาชิกคนเดิม
+func (s *Service) JoinAsGuest(ctx context.Context, code, guestTokenHash, displayName string) (Trip, Member, error) {
+	displayName = strings.TrimSpace(displayName)
+	if err := validateDisplayName(displayName); err != nil {
+		return Trip{}, Member{}, err
+	}
+
+	t, err := s.repo.FindByInviteCode(ctx, code)
+	if err != nil {
+		return Trip{}, Member{}, err
+	}
+	m, err := s.repo.FindMember(ctx, t.ID, Viewer{GuestTokenHash: guestTokenHash})
+	if err == nil {
+		return t, m, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return Trip{}, Member{}, err
+	}
+	m, err = s.repo.AddGuestMember(ctx, t.ID, guestTokenHash, displayName)
+	return t, m, err
+}
+
+// Suggestions จัดอันดับ Window จาก Mark ในทริป — Window ที่เริ่มก่อนวันนี้ไม่แนะนำ
+func (s *Service) Suggestions(ctx context.Context, tripID uuid.UUID, v Viewer) ([]Window, error) {
+	if _, err := s.findMember(ctx, tripID, v); err != nil {
+		return nil, err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	members, err := s.repo.Members(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+	marks, err := s.repo.ListMarks(ctx, tripID)
+	if err != nil {
+		return nil, err
+	}
+
+	from := t.StartDate
+	if today := Today(s.now()); today.After(from) {
+		from = today
+	}
+	ids := make([]uuid.UUID, len(members))
+	for i, m := range members {
+		ids[i] = m.ID
+	}
+	return SuggestWindows(ids, marks, from, t.EndDate, t.DurationDays), nil
+}
+
+// findMember หาสมาชิกจาก User ก่อน ถ้าไม่เจอแต่เครื่องนี้เคยเข้าทริปแบบ Guest ก็ใช้สมาชิก Guest นั้น
+// (เคยเข้าแบบ Guest แล้ว login/สมัครทีหลังบนเครื่องเดิม จะได้ไม่หลุดจากทริป — จนกว่าจะรวม Guest เข้า User ได้จริง)
+func (s *Service) findMember(ctx context.Context, tripID uuid.UUID, v Viewer) (Member, error) {
+	m, err := s.repo.FindMember(ctx, tripID, v)
+	if errors.Is(err, ErrNotFound) && v.UserID != uuid.Nil && v.GuestTokenHash != "" {
+		return s.repo.FindMember(ctx, tripID, Viewer{GuestTokenHash: v.GuestTokenHash})
+	}
+	return m, err
+}
+
+func validateDisplayName(name string) error {
+	if n := utf8.RuneCountInString(name); n < 1 || n > maxDisplayNameRunes {
+		return ErrInvalidDisplayName
+	}
+	return nil
+}
+
+func validateNewTrip(in NewTrip, today time.Time) error {
+	n := utf8.RuneCountInString(in.Title)
+	switch {
+	case n == 0 || n > maxTitleRunes:
+		return fmt.Errorf("%w: title must be 1-%d characters", ErrInvalidTrip, maxTitleRunes)
+	case in.StartDate.Before(today):
+		return fmt.Errorf("%w: start date cannot be in the past", ErrInvalidTrip)
+	case in.EndDate.Before(in.StartDate):
+		return fmt.Errorf("%w: end date must not be before start date", ErrInvalidTrip)
+	case rangeDays(in.StartDate, in.EndDate) > maxRangeDays:
+		return fmt.Errorf("%w: date range must be at most %d days", ErrInvalidTrip, maxRangeDays)
+	case in.DurationDays < 1 || in.DurationDays > rangeDays(in.StartDate, in.EndDate):
+		return fmt.Errorf("%w: duration must be between 1 and the number of days in the date range", ErrInvalidTrip)
+	}
+	return nil
+}
+
+// newInviteCode สุ่ม 16 byte → base64url 22 ตัว เดาไม่ได้ (ลิงก์เชิญคือกุญแจเข้าทริป)
+func newInviteCode() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}

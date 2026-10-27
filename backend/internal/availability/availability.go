@@ -10,15 +10,15 @@ var ErrInvalidStatus = errors.New("invalid status")
 
 type Status string
 
+// มีแค่ว่าง/ไม่ว่าง — ไม่แน่ใจให้ปล่อยวันนั้นว่างไว้ (= Unknown)
 const (
-	StatusFree  Status = "free"
-	StatusBusy  Status = "busy"
-	StatusMaybe Status = "maybe"
+	StatusFree Status = "free"
+	StatusBusy Status = "busy"
 )
 
 func (s Status) Valid() bool {
 	switch s {
-	case StatusFree, StatusBusy, StatusMaybe:
+	case StatusFree, StatusBusy:
 		return true
 	}
 	return false

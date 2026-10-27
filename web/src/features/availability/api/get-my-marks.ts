@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 import type { ISODate } from '@/types/date'
-import type { Mark } from '../types'
+import type { Mark } from '@/types/mark'
 
 export function getMyMarks(from: ISODate, to: ISODate) {
   return apiFetch<Mark[]>(`/api/v1/availability?from=${from}&to=${to}`)
