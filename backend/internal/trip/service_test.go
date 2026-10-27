@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"WeGoJUAN-backend/internal/availability"
 )
 
 type fakeRepo struct {
@@ -25,6 +27,12 @@ type fakeRepo struct {
 	byCodeErr  error
 	addErr     error
 	addedUsers []addedUser
+
+	marks      map[uuid.UUID][]availability.Mark
+	saveCalls  int
+	savedFor   uuid.UUID
+	savedSet   []availability.Mark
+	savedClear []time.Time
 }
 
 type addedUser struct {
@@ -52,6 +60,16 @@ func (r *fakeRepo) FindMember(ctx context.Context, tripID uuid.UUID, v Viewer) (
 
 func (r *fakeRepo) Members(ctx context.Context, tripID uuid.UUID) ([]Member, error) {
 	return r.members, nil
+}
+
+func (r *fakeRepo) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error) {
+	return r.marks, nil
+}
+
+func (r *fakeRepo) SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error {
+	r.saveCalls++
+	r.savedFor, r.savedSet, r.savedClear = memberID, set, clear
+	return nil
 }
 
 func (r *fakeRepo) FindByInviteCode(ctx context.Context, code string) (Trip, error) {
@@ -295,5 +313,69 @@ func TestJoinAsUser_DisplayNameTooLong(t *testing.T) {
 	}
 	if len(repo.addedUsers) != 0 {
 		t.Error("invalid name must not reach the repo")
+	}
+}
+
+// decemberTrip: Date Range 1-20 ธ.ค. 2026 ไป 3 วัน, viewer เป็นสมาชิก me
+func decemberTrip(t *testing.T) (*fakeRepo, Member) {
+	me := Member{ID: uuid.New(), UserID: natID, DisplayName: "nat"}
+	return &fakeRepo{
+		trip: Trip{
+			ID: uuid.New(), OrganizerID: organizerID, Title: "Chiang Mai",
+			StartDate: mustDay(t, "2026-12-01"), EndDate: mustDay(t, "2026-12-20"), DurationDays: 3,
+		},
+		member:  me,
+		members: []Member{me},
+	}, me
+}
+
+func TestSetMyMarks_DayOutOfRange(t *testing.T) {
+	tests := []struct {
+		name  string
+		set   []availability.Mark
+		clear []time.Time
+	}{
+		{"set after end", []availability.Mark{{Day: mustDay(t, "2026-12-21"), Status: availability.StatusFree}}, nil},
+		{"clear before start", nil, []time.Time{mustDay(t, "2026-11-30")}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, _ := decemberTrip(t)
+
+			err := newTestService(repo, defaultNow).SetMyMarks(context.Background(), repo.trip.ID, Viewer{UserID: natID}, tt.set, tt.clear)
+
+			if !errors.Is(err, ErrDayOutOfRange) {
+				t.Fatalf("err = %v, want ErrDayOutOfRange", err)
+			}
+			if repo.saveCalls != 0 {
+				t.Error("out-of-range day must not be saved")
+			}
+		})
+	}
+}
+
+func TestSetMyMarks_SavesForViewersMember(t *testing.T) {
+	repo, me := decemberTrip(t)
+	set := []availability.Mark{{Day: mustDay(t, "2026-12-01"), Status: availability.StatusBusy}}
+	clear := []time.Time{mustDay(t, "2026-12-20")}
+
+	err := newTestService(repo, defaultNow).SetMyMarks(context.Background(), repo.trip.ID, Viewer{UserID: natID}, set, clear)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.savedFor != me.ID || len(repo.savedSet) != 1 || len(repo.savedClear) != 1 {
+		t.Errorf("saved for %v set=%v clear=%v, want member %v", repo.savedFor, repo.savedSet, repo.savedClear, me.ID)
+	}
+}
+
+func TestMarks_NonMember_NotFound(t *testing.T) {
+	repo, _ := decemberTrip(t)
+	repo.memberErr = ErrNotFound
+
+	_, err := newTestService(repo, defaultNow).Marks(context.Background(), repo.trip.ID, Viewer{UserID: natID})
+
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
 }

@@ -1,4 +1,5 @@
 import type { ISODate } from '@/types/date'
+import type { Status } from '@/types/mark'
 
 // ตรงกับ tripResponse ฝั่ง Go
 export type Trip = {
@@ -45,4 +46,11 @@ export type Invite = {
 export type JoinResult = {
   trip_id: string
   member: Member
+}
+
+// ตรงกับ markResponse ของทริปฝั่ง Go
+export type TripMark = {
+  member_id: string
+  day: ISODate
+  status: Status
 }

@@ -3,11 +3,14 @@ package trip
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"WeGoJUAN-backend/internal/availability"
 )
 
 type PostgresRepository struct {
@@ -139,4 +142,48 @@ func (r *PostgresRepository) AddUserMember(ctx context.Context, tripID, userID u
 		}
 	}
 	return m, err
+}
+
+func (r *PostgresRepository) ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error) {
+	// Mark นอก Date Range (เช่นหลังผู้จัดหดช่วงวัน) ไม่มีผลกับทริป จึงกรองทิ้ง
+	rows, err := r.db.Query(ctx, `
+		SELECT k.member_id, k.day, k.status
+		FROM trip_marks k
+		JOIN trip_members m ON m.id = k.member_id
+		JOIN trips t ON t.id = m.trip_id
+		WHERE m.trip_id = $1 AND k.day BETWEEN t.start_date AND t.end_date
+		ORDER BY k.day`, tripID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byMember := map[uuid.UUID][]availability.Mark{}
+	for rows.Next() {
+		var memberID uuid.UUID
+		var m availability.Mark
+		if err := rows.Scan(&memberID, &m.Day, &m.Status); err != nil {
+			return nil, err
+		}
+		byMember[memberID] = append(byMember[memberID], m)
+	}
+	return byMember, rows.Err()
+}
+
+func (r *PostgresRepository) SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error {
+	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		for _, m := range set {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO trip_marks (member_id, day, status) VALUES ($1, $2, $3)
+				ON CONFLICT (member_id, day) DO UPDATE SET status = EXCLUDED.status`,
+				memberID, m.Day, string(m.Status)); err != nil {
+				return err
+			}
+		}
+		if len(clear) == 0 {
+			return nil
+		}
+		_, err := tx.Exec(ctx, `DELETE FROM trip_marks WHERE member_id = $1 AND day = ANY($2)`, memberID, clear)
+		return err
+	})
 }

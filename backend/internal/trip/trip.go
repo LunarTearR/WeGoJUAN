@@ -13,6 +13,7 @@ var (
 	ErrInvalidTrip        = errors.New("invalid trip") // ห่อด้วยเหตุผล: fmt.Errorf("%w: ...", ErrInvalidTrip)
 	ErrDisplayNameTaken   = errors.New("display name already taken in this trip")
 	ErrInvalidDisplayName = errors.New("display name must be 1-50 characters")
+	ErrDayOutOfRange      = errors.New("day is outside the trip's date range")
 )
 
 type Trip struct {
@@ -43,6 +44,11 @@ type Member struct {
 
 func (m Member) IsGuest() bool {
 	return m.UserID == uuid.Nil
+}
+
+// inDateRange บอกว่าวัน d อยู่ใน Date Range ของทริปไหม
+func (t Trip) inDateRange(d time.Time) bool {
+	return !d.Before(t.StartDate) && !d.After(t.EndDate)
 }
 
 // Viewer คือคนที่กำลังเรียก API — ใช้หาว่าเป็นสมาชิกคนไหนของทริป

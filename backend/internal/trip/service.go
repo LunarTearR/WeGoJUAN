@@ -11,6 +11,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+
+	"WeGoJUAN-backend/internal/availability"
 )
 
 const (
@@ -32,6 +34,10 @@ type Repository interface {
 	FindByInviteCode(ctx context.Context, code string) (Trip, error)
 	// AddUserMember: displayName "" = ใช้ users.display_name; ชื่อชนในทริป → ErrDisplayNameTaken
 	AddUserMember(ctx context.Context, tripID, userID uuid.UUID, displayName string) (Member, error)
+	// ListMarks คืน member ID → Mark ของคนนั้น เฉพาะวันใน Date Range
+	ListMarks(ctx context.Context, tripID uuid.UUID) (map[uuid.UUID][]availability.Mark, error)
+	// SaveMarks ตั้ง Mark ใน set และลบวันใน clear ของสมาชิกคนเดียว ใน transaction เดียว
+	SaveMarks(ctx context.Context, memberID uuid.UUID, set []availability.Mark, clear []time.Time) error
 }
 
 type Service struct {
@@ -123,6 +129,40 @@ func (s *Service) JoinAsUser(ctx context.Context, code string, userID uuid.UUID,
 	}
 	m, err = s.repo.AddUserMember(ctx, t.ID, userID, displayName)
 	return t, m, err
+}
+
+// Marks คืน Mark ของทุกสมาชิก — สมาชิกเห็นของกันและกันทั้งหมด คนนอกได้ ErrNotFound
+func (s *Service) Marks(ctx context.Context, tripID uuid.UUID, v Viewer) (map[uuid.UUID][]availability.Mark, error) {
+	if _, err := s.repo.FindMember(ctx, tripID, v); err != nil {
+		return nil, err
+	}
+	return s.repo.ListMarks(ctx, tripID)
+}
+
+// SetMyMarks แก้ Mark ของตัวเองในทริป (แก้ได้แค่ของตัวเอง และเฉพาะวันใน Date Range)
+func (s *Service) SetMyMarks(ctx context.Context, tripID uuid.UUID, v Viewer, set []availability.Mark, clear []time.Time) error {
+	me, err := s.repo.FindMember(ctx, tripID, v)
+	if err != nil {
+		return err
+	}
+	t, err := s.repo.FindByID(ctx, tripID)
+	if err != nil {
+		return err
+	}
+	for _, m := range set {
+		if !m.Status.Valid() {
+			return fmt.Errorf("%w: %q", availability.ErrInvalidStatus, m.Status)
+		}
+		if !t.inDateRange(m.Day) {
+			return fmt.Errorf("%w: %s", ErrDayOutOfRange, m.Day.Format(time.DateOnly))
+		}
+	}
+	for _, d := range clear {
+		if !t.inDateRange(d) {
+			return fmt.Errorf("%w: %s", ErrDayOutOfRange, d.Format(time.DateOnly))
+		}
+	}
+	return s.repo.SaveMarks(ctx, me.ID, set, clear)
 }
 
 func validateDisplayName(name string) error {

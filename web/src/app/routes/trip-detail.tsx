@@ -2,6 +2,7 @@ import { useParams } from 'react-router'
 import { useTrip } from '@/features/trip/api/get-trip'
 import { InviteLinkBox } from '@/features/trip/components/invite-link-box'
 import { MemberList } from '@/features/trip/components/member-list'
+import { TripMarksGrid } from '@/features/trip/components/trip-marks-grid'
 
 // หน้านี้คือจุดที่ประกอบหลายส่วนของทริปเข้าด้วยกัน (เหมือน wiring ใน main.go)
 export function TripDetailRoute() {
@@ -15,7 +16,7 @@ export function TripDetailRoute() {
     return <p className="text-red-700">โหลดทริปไม่สำเร็จ: {error.message}</p>
   }
 
-  const { trip, members } = data
+  const { trip, members, me } = data
   return (
     <section className="space-y-6">
       <div>
@@ -28,6 +29,10 @@ export function TripDetailRoute() {
       <div className="space-y-2">
         <h2 className="font-medium">สมาชิก</h2>
         <MemberList members={members} />
+      </div>
+      <div className="space-y-2">
+        <h2 className="font-medium">วันว่างของสมาชิก</h2>
+        <TripMarksGrid trip={trip} members={members} me={me} />
       </div>
     </section>
   )

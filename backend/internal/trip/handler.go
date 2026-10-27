@@ -1,13 +1,16 @@
 package trip
 
 import (
+	"cmp"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
 	"WeGoJUAN-backend/internal/auth"
+	"WeGoJUAN-backend/internal/availability"
 )
 
 type Handler struct {
@@ -25,6 +28,8 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 	r.Post("/", requireAuth, h.create)
 	r.Get("/", requireAuth, h.listMine)
 	r.Get("/:id", requireAuth, h.getByID)
+	r.Get("/:id/marks", requireAuth, h.marks)
+	r.Put("/:id/marks/me", requireAuth, h.setMyMarks) // body แบบเดียวกับ PUT /availability
 }
 
 type createTripRequest struct {
@@ -55,6 +60,12 @@ type detailResponse struct {
 	Trip    tripResponse     `json:"trip"`
 	Members []memberResponse `json:"members"`
 	Me      memberResponse   `json:"me"`
+}
+
+type markResponse struct {
+	MemberID uuid.UUID           `json:"member_id"`
+	Day      string              `json:"day"`
+	Status   availability.Status `json:"status"`
 }
 
 func newTripResponse(t Trip) tripResponse {
@@ -117,9 +128,9 @@ func (h *Handler) listMine(c fiber.Ctx) error {
 }
 
 func (h *Handler) getByID(c fiber.Ctx) error {
-	tripID, err := uuid.Parse(c.Params("id"))
+	tripID, err := parseTripID(c)
 	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, ErrNotFound.Error())
+		return err
 	}
 
 	d, err := h.svc.Get(c, tripID, viewerFrom(c))
@@ -139,6 +150,67 @@ func (h *Handler) getByID(c fiber.Ctx) error {
 		Members: members,
 		Me:      newMemberResponse(d.Trip, d.Me),
 	})
+}
+
+func (h *Handler) marks(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	byMember, err := h.svc.Marks(c, tripID, viewerFrom(c))
+	if errors.Is(err, ErrNotFound) {
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	}
+	if err != nil {
+		return err
+	}
+
+	resp := []markResponse{}
+	for memberID, marks := range byMember {
+		for _, m := range marks {
+			resp = append(resp, markResponse{MemberID: memberID, Day: m.Day.Format(time.DateOnly), Status: m.Status})
+		}
+	}
+	// map วนไม่เป็นลำดับ — เรียงให้ผลลัพธ์คงที่
+	slices.SortFunc(resp, func(a, b markResponse) int {
+		return cmp.Or(cmp.Compare(a.Day, b.Day), cmp.Compare(a.MemberID.String(), b.MemberID.String()))
+	})
+	return c.JSON(resp)
+}
+
+func (h *Handler) setMyMarks(c fiber.Ctx) error {
+	tripID, err := parseTripID(c)
+	if err != nil {
+		return err
+	}
+	var reqs []availability.ChangeRequest
+	if err := c.Bind().Body(&reqs); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "invalid request body")
+	}
+	set, clear, err := availability.ParseChanges(reqs)
+	if err == nil {
+		err = h.svc.SetMyMarks(c, tripID, viewerFrom(c), set, clear)
+	}
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return fiber.NewError(fiber.StatusNotFound, err.Error())
+	case errors.Is(err, availability.ErrInvalidStatus):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, err.Error())
+	case errors.Is(err, availability.ErrInvalidDay), errors.Is(err, ErrDayOutOfRange):
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	case err != nil:
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// parseTripID: id ที่ไม่ใช่ UUID ตอบ 404 เหมือนไม่มีทริปนี้
+func parseTripID(c fiber.Ctx) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return uuid.Nil, fiber.NewError(fiber.StatusNotFound, ErrNotFound.Error())
+	}
+	return id, nil
 }
 
 // userIDFrom คืน userID ของคนที่ login อยู่ หรือ uuid.Nil ถ้าไม่ได้ login (route ที่ใช้ Optional)
