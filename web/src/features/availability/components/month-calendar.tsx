@@ -1,24 +1,30 @@
+import { useState } from 'react'
 import { MonthGrid } from '@/components/calendar/month-grid'
 import { MonthNav } from '@/components/calendar/month-nav'
-import { nextStatus, statusClass, statusLabel } from '@/lib/mark'
-import type { Status } from '@/types/mark'
+import { statusClass, statusLabel } from '@/lib/mark'
+import type { ISODate } from '@/types/date'
+import type { Mark } from '@/types/mark'
 import { useMyMarks } from '../api/get-my-marks'
 import { useSaveMyMarks } from '../api/save-my-marks'
+import { busyRuns } from '../utils/busy-runs'
 import { monthRange } from '../utils/month-range'
+import { BusySummary } from './busy-summary'
+import { CalendarDayPanel } from './calendar-day-panel'
 
 type MonthCalendarProps = {
   year: number
   month: number // 1-12
   onChangeMonth: (delta: number) => void
-  onSaved?: (day: string) => void // บันทึกวันไหนสำเร็จ (ใช้ชวน re-sync ทริป)
+  onSaved?: (days: ISODate[]) => void // บันทึกวันไหนสำเร็จ (ใช้ชวน re-sync ทริป)
 }
 
 export function MonthCalendar({ year, month, onChangeMonth, onSaved }: MonthCalendarProps) {
   const { from, to } = monthRange(year, month)
   const { data: marks, isPending, error } = useMyMarks(from, to)
   const saveMutation = useSaveMyMarks()
+  const [selected, setSelected] = useState<ISODate | null>(null)
 
-  const statusByDay = new Map<string, Status>(marks?.map((m) => [m.day, m.status]))
+  const markByDay = new Map<string, Mark>(marks?.map((m) => [m.day, m]))
 
   return (
     <div className="space-y-3">
@@ -33,15 +39,19 @@ export function MonthCalendar({ year, month, onChangeMonth, onSaved }: MonthCale
           year={year}
           month={month}
           renderDay={(day, n) => {
-            const status = statusByDay.get(day) ?? null
+            const mark = markByDay.get(day)
+            const status = mark?.status ?? null
             return (
               <button
                 type="button"
-                aria-label={`${day} ${statusLabel[status ?? 'unknown']}`}
-                onClick={() => saveMutation.mutate([{ day, status: nextStatus(status) }], { onSuccess: () => onSaved?.(day) })}
-                className={`aspect-square w-full rounded border text-sm ${statusClass(status)}`}
+                // "(เหตุผล)" อยู่กลางเพื่อให้คำสุดท้ายเป็นสถานะเสมอ
+                aria-label={`${day}${mark?.reason ? ` (${mark.reason})` : ''} ${statusLabel[status ?? 'unknown']}`}
+                aria-pressed={selected === day}
+                onClick={() => setSelected(day)}
+                className={`relative aspect-square w-full rounded border text-sm ${statusClass(status)} ${selected === day ? 'outline-2 outline-gray-900' : ''}`}
               >
                 {n}
+                {mark?.reason && <span data-reason-dot className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white" />}
               </button>
             )
           }}
@@ -55,7 +65,22 @@ export function MonthCalendar({ year, month, onChangeMonth, onSaved }: MonthCale
             {statusLabel[s ?? 'unknown']}
           </span>
         ))}
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-500" /> มีเหตุผล
+        </span>
       </div>
+
+      {selected && (
+        <CalendarDayPanel
+          key={selected}
+          day={selected}
+          mark={markByDay.get(selected)}
+          saving={saveMutation.isPending}
+          onSave={(changes) => saveMutation.mutate(changes, { onSuccess: () => onSaved?.(changes.map((c) => c.day)) })}
+        />
+      )}
+
+      {marks && <BusySummary runs={busyRuns(marks)} onSelect={setSelected} />}
     </div>
   )
 }

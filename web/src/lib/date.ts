@@ -34,3 +34,18 @@ export function formatThaiDay(day: ISODate): string {
   const [y, m, d] = day.split('-').map(Number)
   return new Intl.DateTimeFormat('th-TH', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)))
 }
+
+// ช่วงวันในเดือนเดียวกัน: "15–19 ธ.ค." หรือ "21 ธ.ค." ถ้าวันเดียว
+export function formatDayRange(from: ISODate, to: ISODate): string {
+  const [y, m, d1] = from.split('-').map(Number)
+  const d2 = Number(to.split('-')[2])
+  const month = new Intl.DateTimeFormat('th-TH', { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d1)))
+  return d1 === d2 ? `${d1} ${month}` : `${d1}–${d2} ${month}`
+}
+
+// ISODate ถัดไป n วัน (UTC ล้วน)
+export function addDays(day: ISODate, n: number): ISODate {
+  const [y, m, d] = day.split('-').map(Number)
+  const t = new Date(Date.UTC(y, m - 1, d + n))
+  return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`
+}
