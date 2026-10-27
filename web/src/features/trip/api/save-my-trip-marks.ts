@@ -21,14 +21,22 @@ function applyMyChanges(marks: TripMark[], memberId: string, changes: MarkChange
 export function useSaveMyTripMarks(tripId: string, memberId: string) {
   const queryClient = useQueryClient()
   const marksKey = ['trips', tripId, 'marks']
-  return useMutation({
+  const mutationKey = ['trips', tripId, 'marks', 'save']
+  return useMutation<void, Error, MarkChange[]>({
+    mutationKey,
     mutationFn: (changes: MarkChange[]) => saveMyTripMarks(tripId, changes),
+    // ส่ง PUT ทีละอัน ให้ถึง server ตามลำดับที่กด (ดู useSaveMyMarks)
+    scope: { id: `trip-marks-${tripId}` },
     // เปลี่ยนสีทันทีที่กด ไม่ต้องรอ server
     onMutate: async (changes) => {
       await queryClient.cancelQueries({ queryKey: marksKey })
       queryClient.setQueryData<TripMark[]>(marksKey, (old) => old && applyMyChanges(old, memberId, changes))
     },
-    // invalidate ทั้ง prefix ของทริป ให้ช่วงวันที่แนะนำคำนวณใหม่ด้วย
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['trips', tripId] }),
+    // อันสุดท้ายเสร็จค่อย invalidate ทั้ง prefix ของทริป ให้ช่วงวันที่แนะนำคำนวณใหม่ด้วย
+    onSettled: () => {
+      if (queryClient.isMutating({ mutationKey }) === 1) {
+        return queryClient.invalidateQueries({ queryKey: ['trips', tripId] })
+      }
+    },
   })
 }
