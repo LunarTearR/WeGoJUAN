@@ -12,14 +12,14 @@ export function AppShell({ actions }: AppShellProps) {
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-3">
         <nav className="flex items-center gap-4">
-          <NavLink to="/" className="font-semibold">
+          <NavLink to="/trips" className="font-semibold">
             WeGoJUAN
-          </NavLink>
-          <NavLink to="/" end className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
-            ปฏิทินของฉัน
           </NavLink>
           <NavLink to="/trips" className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
             ทริปของฉัน
+          </NavLink>
+          <NavLink to="/calendar" className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
+            ปฏิทินของฉัน
           </NavLink>
         </nav>
         <div className="flex items-center gap-4">
