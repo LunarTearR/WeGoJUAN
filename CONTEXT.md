@@ -11,8 +11,12 @@ A group outing lasting one or more consecutive days that its members plan togeth
 _Avoid_: Event, meetup, appointment
 
 **Date Range**:
-The span of days the **Organizer** opens for choosing. **Marks** outside it play no part in the **Trip**. It cannot start in the past when the **Trip** is created. Days added by extending it start **Unknown** for every **Member**.
+The span of days the **Organizer** opens for choosing. **Marks** outside it play no part in the **Trip**. It cannot start in the past when the **Trip** is created. When it is changed later, its start may stay where it is even if that day has passed, but cannot move to another day in the past. Its end is never before its start. Days added by extending it start **Unknown** for every **Member**.
 _Avoid_: period, window (a **Window** is something else)
+
+**Today**:
+The current date in Thailand, whatever device or timezone a person is in. Every rule about the past (a **Date Range** start, which **Windows** are suggested) is measured against it.
+_Avoid_: local date, device date
 
 **Duration**:
 How many consecutive days the **Trip** lasts — one fixed number, at least 1 and no longer than the **Date Range**. Not a range like "3–4 days".

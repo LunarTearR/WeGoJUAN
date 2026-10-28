@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { StatusPicker } from '@/components/ui/status-picker'
 import { TextField } from '@/components/ui/text-field'
-import { addDays, eachDay, formatThaiDay } from '@/lib/date'
+import { addDays, eachDay, formatDayMonth, formatThaiDay } from '@/lib/date'
 import type { ISODate } from '@/types/date'
 import type { Mark, MarkChange, Status } from '@/types/mark'
 
@@ -33,7 +33,7 @@ export function CalendarDayPanel({ day, mark, saving, error, onSave, onClose }: 
   const docked = layout === 'expanded' || layout === 'split'
 
   const last = addDays(day, MAX_DAYS - 1)
-  const untilError = until && until < day ? 'วันที่สิ้นสุดต้องไม่ก่อนวันที่เลือก' : until > last ? `เลือกได้ไม่เกิน ${MAX_DAYS} วัน` : ''
+  const untilError = until && until < day ? `ต้องไม่ก่อนวันที่เลือก (${formatDayMonth(day)})` : until > last ? `เลือกได้ไม่เกิน ${MAX_DAYS} วัน` : ''
   const days = until && !untilError ? eachDay(day, until) : [day]
 
   function save() {
