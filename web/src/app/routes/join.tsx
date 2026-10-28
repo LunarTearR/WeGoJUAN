@@ -1,10 +1,20 @@
 import { Link, useParams } from 'react-router'
+import { PageLayout } from '@/components/layout/page-layout'
+import { HomeAppBar } from '@/app/home-app-bar'
 import { useMe } from '@/features/auth/api/get-me'
 import { useInvite } from '@/features/trip/api/get-invite'
 import { JoinTripForm } from '@/features/trip/components/join-trip-form'
 
-// หน้าที่เปิดจากลิงก์เชิญ: ใครก็เปิดได้ เห็นแค่ชื่อทริปกับช่วงวัน
 export function JoinRoute() {
+  return (
+    <PageLayout header={<HomeAppBar />}>
+      <Join />
+    </PageLayout>
+  )
+}
+
+// หน้าที่เปิดจากลิงก์เชิญ: ใครก็เปิดได้ เห็นแค่ชื่อทริปกับช่วงวัน
+function Join() {
   const { code = '' } = useParams()
   const { data: invite, isPending, error } = useInvite(code)
   const { data: me } = useMe()

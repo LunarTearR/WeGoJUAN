@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
-import { AppShell } from '@/components/layout/app-shell'
 import { RequireUser } from '@/features/auth/components/require-user'
-import { UserMenu } from '@/features/auth/components/user-menu'
+import { AppLayout } from './routes/app-layout'
 import { CalendarRoute } from './routes/calendar'
 import { JoinRoute } from './routes/join'
 import { LoginRoute } from './routes/login'
@@ -13,8 +12,8 @@ import { TripsRoute } from './routes/trips'
 
 export const router = createBrowserRouter([
   {
-    // AppShell อยู่ใน components (shared) จึง import feature เองไม่ได้ — ส่ง UserMenu เข้าไปจากตรงนี้
-    element: <AppShell actions={<UserMenu />} />,
+    // AppShell อยู่ใน components (shared) จึง import feature เองไม่ได้ — AppLayout ประกอบให้ที่ฝั่ง app
+    element: <AppLayout />,
     children: [
       {
         element: <RequireUser />,
