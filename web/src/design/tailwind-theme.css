@@ -24,6 +24,10 @@
   --color-honey-soft: var(--honey-soft);
   --color-honey-ink: var(--honey-ink);
   --color-danger: var(--danger);
+  --color-sand: var(--sand);
+  --color-mist: var(--mist);
+  --color-mist-line: var(--mist-line);
+  --color-mist-ink: var(--mist-ink);
 
   /* new names, so nothing points at itself */
   --font-brand: var(--font-display);

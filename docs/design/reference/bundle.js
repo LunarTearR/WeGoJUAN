@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":4,"namespace":"WeGoJUAN","components":[{"name":"Button"},{"name":"Icon"},{"name":"Face"},{"name":"TextField"},{"name":"Checkbox"},{"name":"StatusPicker"},{"name":"Pill"},{"name":"Initials"},{"name":"MemberChip"},{"name":"MonthNav"},{"name":"MonthGrid"},{"name":"DayCell"},{"name":"CalendarLegend"},{"name":"TripCard"},{"name":"SuggestionCard"},{"name":"ConfirmedDates"},{"name":"InviteLinkBox"},{"name":"Banner"},{"name":"EmptyState"},{"name":"AppBar"},{"name":"BottomNav"},{"name":"Sheet"},{"name":"AppShell"},{"name":"SideNav"},{"name":"PageLayout"}]} */
+/* @ds-bundle: {"format":4,"namespace":"WeGoJUAN","components":[{"name":"Button"},{"name":"Icon"},{"name":"StatusIcon"},{"name":"TextField"},{"name":"Checkbox"},{"name":"StatusPicker"},{"name":"Pill"},{"name":"Initials"},{"name":"MemberChip"},{"name":"MonthNav"},{"name":"MonthGrid"},{"name":"DayCell"},{"name":"CalendarLegend"},{"name":"TripCard"},{"name":"SuggestionCard"},{"name":"ConfirmedDates"},{"name":"InviteLinkBox"},{"name":"Banner"},{"name":"EmptyState"},{"name":"AppBar"},{"name":"BottomNav"},{"name":"Sheet"},{"name":"AppShell"},{"name":"SideNav"},{"name":"PageLayout"}]} */
 /* WeGoJUAN design system: hand-written React components (no build step). Reads window.React,
    styles come from bundle.css + tokens.css. Thai is the UI language; labels default to the app's terms. */
 (function () {
@@ -87,51 +87,35 @@
     }, parts.map(function (p, i) { return h(p[0], Object.assign({ key: i }, p[1])); }));
   }
 
-  /* ---------------- Face: the brand's emotion ---------------- */
-  var FACE_LABEL = { free: 'ว่าง', busy: 'ไม่ว่าง', unknown: 'ยังไม่ระบุ', party: 'เย้', sleepy: 'ว่างเปล่า' };
-  function faceParts(mood) {
-    var bg = h('circle', { key: 'bg', className: 'wg-face__bg', cx: 16, cy: 16.5, r: 13 });
-    var blush = [h('circle', { key: 'b1', className: 'wg-face__blush', cx: 8.6, cy: 19.4, r: 1.9 }), h('circle', { key: 'b2', className: 'wg-face__blush', cx: 23.4, cy: 19.4, r: 1.9 })];
-    switch (mood) {
-      case 'busy':
-        return [bg,
-          h('path', { key: 'e1', className: 'wg-face__line', d: 'M9.6 12.4l3.4 2-3.4 2' }),
-          h('path', { key: 'e2', className: 'wg-face__line', d: 'M22.4 12.4l-3.4 2 3.4 2' }),
-          h('path', { key: 'm', className: 'wg-face__line', d: 'M10.6 21.6c.9-1 1.8-1 2.7 0s1.8 1 2.7 0 1.8-1 2.7 0 1.8 1 2.7 0' }),
-          h('path', { key: 'd', className: 'wg-face__drop', d: 'M25.6 3.6c1.7 2.3 2.4 3.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1 .7-2.3 2.4-4.6z' })];
-      case 'unknown':
-        return [bg,
-          h('circle', { key: 'e1', className: 'wg-face__dot', cx: 12.4, cy: 14.4, r: 1.7 }),
-          h('circle', { key: 'e2', className: 'wg-face__dot', cx: 20.8, cy: 14.4, r: 1.7 }),
-          h('path', { key: 'br', className: 'wg-face__line', d: 'M18.4 10.4c1.5-1.2 3.4-1.4 5-.4' }),
-          h('path', { key: 'm', className: 'wg-face__line', d: 'M13 21.6c1.6-.6 3.6-.6 5.6.2' })];
-      case 'party':
-        return [bg].concat(blush, [
-          h('path', { key: 'e1', className: 'wg-face__line', d: 'M9.4 15l2.4-2.8 2.4 2.8' }),
-          h('path', { key: 'e2', className: 'wg-face__line', d: 'M17.8 15l2.4-2.8 2.4 2.8' }),
-          h('path', { key: 'm', className: 'wg-face__dot', d: 'M10.6 18.4h10.8a5.4 5.4 0 0 1-10.8 0z' })]);
-      case 'sleepy':
-        return [bg].concat(blush, [
-          h('path', { key: 'e1', className: 'wg-face__line', d: 'M9.6 15c1.2 1.3 2.8 1.3 4 0' }),
-          h('path', { key: 'e2', className: 'wg-face__line', d: 'M18.4 15c1.2 1.3 2.8 1.3 4 0' }),
-          h('circle', { key: 'm', className: 'wg-face__line', cx: 16, cy: 21.4, r: 1.5 }),
-          h('path', { key: 'z', className: 'wg-face__line', d: 'M24.2 2.6h3.6l-3.6 3.6h3.6', style: { strokeWidth: 1.6 } })]);
-      default: // free
-        return [bg].concat(blush, [
-          h('circle', { key: 'e1', className: 'wg-face__dot', cx: 11.6, cy: 14, r: 1.8 }),
-          h('circle', { key: 'e2', className: 'wg-face__dot', cx: 20.4, cy: 14, r: 1.8 }),
-          h('path', { key: 'm', className: 'wg-face__line', d: 'M10.8 18.6c1.4 2.6 3.2 3.8 5.2 3.8s3.8-1.2 5.2-3.8' })]);
-    }
+  /* ---------------- StatusIcon: lucide-react icons in a round badge ----------------
+     Geometry copied from lucide-react 1.56.0 (ISC licence, https://lucide.dev) so previews match the app,
+     where the same icons come from `import { Calendar, CalendarClock, Ticket, Check, X, MoreHorizontal } from 'lucide-react'`. */
+  var LUCIDE = {"calendar": [["path", {"d": "M8 2v3"}], ["path", {"d": "M16 2v3"}], ["rect", {"x": 3.0, "y": 3.0, "width": 18.0, "height": 18.0, "rx": 2.0}], ["path", {"d": "M3 9h18"}]], "calendar-clock": [["path", {"d": "M16 14v2.2l1.6 1"}], ["path", {"d": "M16 2v3"}], ["path", {"d": "M21 7.338V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h2.338"}], ["path", {"d": "M3 9h5.859"}], ["path", {"d": "M8 2v3"}], ["circle", {"cx": 16.0, "cy": 16.0, "r": 6.0}]], "ticket": [["path", {"d": "M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"}], ["path", {"d": "M13 5v2"}], ["path", {"d": "M13 17v2"}], ["path", {"d": "M13 11v2"}]], "check": [["path", {"d": "M20 6 9 17l-5-5"}]], "x": [["path", {"d": "M18 6 6 18"}], ["path", {"d": "m6 6 12 12"}]], "ellipsis": [["circle", {"cx": 12.0, "cy": 12.0, "r": 1.0}], ["circle", {"cx": 19.0, "cy": 12.0, "r": 1.0}], ["circle", {"cx": 5.0, "cy": 12.0, "r": 1.0}]]};
+  // kind → [lucide icon, Thai label]. Trip status: finding / confirmed (+ calendar for empty states). Member availability: free / busy / unknown.
+  var STATUS_KINDS = {
+    finding: ['calendar-clock', 'กำลังหาวัน'],
+    calendar: ['calendar', 'ปฏิทิน'],
+    confirmed: ['ticket', 'ยืนยันแล้ว'],
+    free: ['check', 'ว่าง'],
+    busy: ['x', 'ไม่ว่าง'],
+    unknown: ['ellipsis', 'ยังไม่ระบุ']
+  };
+  function LucideIcon(props) {
+    var parts = LUCIDE[props.name] || [];
+    return h('svg', { width: props.size, height: props.size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: props.strokeWidth || 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, focusable: 'false' },
+      parts.map(function (p, i) { return h(p[0], Object.assign({ key: i }, p[1])); }));
   }
-  function Face(props) {
-    var mood = props.mood || 'free';
+  function StatusIcon(props) {
+    var kind = STATUS_KINDS[props.kind] ? props.kind : 'unknown';
     var size = props.size || 32;
-    var label = props.title === undefined ? null : (props.title || FACE_LABEL[mood]);
-    return h('svg', {
-      className: cx('wg-face', 'wg-face--' + mood, props.hop && 'wg-face--hop', props.className),
-      width: size, height: size, viewBox: '0 0 32 32', focusable: 'false',
-      role: label ? 'img' : undefined, 'aria-label': label || undefined, 'aria-hidden': label ? undefined : true
-    }, faceParts(mood));
+    // the icon keeps a ~2px optical stroke from 16px badges up to 88px heroes
+    var icon = size <= 20 ? Math.round(size * 0.62) : size <= 32 ? Math.round(size * 0.56) : size <= 48 ? Math.round(size * 0.52) : Math.round(size * 0.5);
+    var stroke = size <= 20 ? 3 : size <= 32 ? 2.5 : size <= 48 ? 2.25 : 2;
+    var label = props.title === undefined ? null : (props.title || STATUS_KINDS[kind][1]);
+    return h('span', {
+      className: cx('wg-status', 'wg-status--' + kind, props.stamp && 'wg-status--stamp', props.className),
+      style: { width: size, height: size }, role: label ? 'img' : undefined, 'aria-label': label || undefined, 'aria-hidden': label ? undefined : true
+    }, h(LucideIcon, { name: STATUS_KINDS[kind][0], size: icon, strokeWidth: stroke }));
   }
 
   /* ---------------- Button ---------------- */
@@ -183,8 +167,8 @@
 
   function StatusPicker(props) {
     var value = props.value === undefined ? null : props.value;
-    var opts = [{ s: 'free', mood: 'free' }, { s: 'busy', mood: 'busy' }];
-    if (props.allowUnknown !== false) opts.push({ s: null, mood: 'unknown' });
+    var opts = [{ s: 'free', kind: 'free' }, { s: 'busy', kind: 'busy' }];
+    if (props.allowUnknown !== false) opts.push({ s: null, kind: 'unknown' });
     var labels = Object.assign({ free: 'ว่าง', busy: 'ไม่ว่าง', unknown: 'ไม่ระบุ' }, props.labels || {});
     return h('div', { className: cx('wg-seg', props.className), role: 'radiogroup', 'aria-label': props.label || 'สถานะของฉัน', style: { '--seg-count': opts.length } },
       opts.map(function (o) {
@@ -194,15 +178,16 @@
           key: key, type: 'button', role: 'radio', 'aria-checked': on, disabled: props.disabled,
           className: cx('wg-seg__opt', 'wg-seg__opt--' + key),
           onClick: function () { if (props.onChange) props.onChange(o.s); }
-        }, h(Face, { mood: o.mood, size: 28 }), h('span', { className: 'small', style: { fontWeight: 600 } }, labels[key]));
+        }, h(StatusIcon, { kind: o.kind, size: 28 }), h('span', { className: 'small', style: { fontWeight: 600 } }, labels[key]));
       }));
   }
 
   /* ---------------- Status bits ---------------- */
   function Pill(props) {
-    return h('span', { className: cx('wg-pill', 'wg-pill--' + (props.tone || 'orange'), 'caption', props.className) },
+    var tone = props.tone || (props.status ? 'outline' : 'orange');
+    return h('span', { className: cx('wg-pill', 'wg-pill--' + tone, props.status && 'wg-pill--status', 'caption', props.className) },
       props.icon ? h(Icon, { name: props.icon, size: 14 }) : null,
-      props.face ? h(Face, { mood: props.face, size: 16 }) : null,
+      props.status ? h(StatusIcon, { kind: props.status, size: 18 }) : null,
       props.children);
   }
 
@@ -326,7 +311,7 @@
     var Tag = props.href ? 'a' : 'button';
     var extra = props.href ? { href: props.href } : { type: 'button', onClick: props.onClick };
     return h(Tag, Object.assign({ className: cx('wg-card', 'wg-trip', props.className) }, extra),
-      h(Face, { mood: confirmed ? 'party' : 'unknown', size: 44 }),
+      h(StatusIcon, { kind: confirmed ? 'confirmed' : 'finding', size: 44 }),
       h('span', { className: 'wg-trip__body' },
         h('span', { className: 'wg-trip__title heading', style: { display: 'block' } }, props.title),
         h('span', { className: 'wg-trip__meta small', style: { display: 'block' } }, 'เลือกได้ ' + props.rangeLabel + ' · ไป ' + props.durationDays + ' วัน'),
@@ -340,7 +325,7 @@
     var a = props.available || [], b = props.busy || [], u = props.unknown || [];
     var total = a.length + b.length + u.length;
     var best = props.rank === 1;
-    var faces = a.map(function (n) { return { n: n, m: 'free' }; }).concat(b.map(function (n) { return { n: n, m: 'busy' }; }), u.map(function (n) { return { n: n, m: 'unknown' }; }));
+    var icons = a.map(function (n) { return { n: n, m: 'free' }; }).concat(b.map(function (n) { return { n: n, m: 'busy' }; }), u.map(function (n) { return { n: n, m: 'unknown' }; }));
     return h('article', { className: cx('wg-card', 'wg-sugg', best && 'wg-sugg--best', props.className), 'aria-label': 'ช่วง ' + props.rangeLabel },
       h('div', { className: 'wg-sugg__head' },
         h('div', null,
@@ -348,8 +333,8 @@
           h('p', { className: 'wg-sugg__range heading' }, props.rangeLabel),
           props.durationDays ? h('span', { className: 'small wg-muted' }, props.durationDays + ' วัน') : null),
         h('div', { className: 'wg-sugg__stat' }, h('span', { className: 'stat' }, a.length + '/' + total), h('small', { className: 'caption' }, 'ว่าง'))),
-      h('div', { className: 'wg-sugg__faces', role: 'list' },
-        faces.map(function (f) { return h('span', { key: f.m + f.n, role: 'listitem', title: f.n + ' ' + STATUS_LABEL[f.m] }, h(Face, { mood: f.m, size: 28, title: f.n + ' ' + STATUS_LABEL[f.m] })); })),
+      h('div', { className: 'wg-sugg__icons', role: 'list' },
+        icons.map(function (f) { return h('span', { key: f.m + f.n, role: 'listitem', title: f.n + ' ' + STATUS_LABEL[f.m] }, h(StatusIcon, { kind: f.m, size: 28, title: f.n + ' ' + STATUS_LABEL[f.m] })); })),
       b.length === 0 && u.length === 0
         ? h('p', { className: 'wg-sugg__line wg-sugg__line--all body-strong' }, 'ว่างครบทุกคน! ไปกันเลย')
         : h('div', { className: 'wg-sugg__people' },
@@ -364,14 +349,14 @@
   function ConfirmedDates(props) {
     if (!props.confirmedLabel) {
       return h('div', { className: cx('wg-finding', props.className) },
-        h(Face, { mood: 'unknown', size: 40 }),
+        h(StatusIcon, { kind: 'finding', size: 40 }),
         h('div', { className: 'wg-finding__body' },
           h('p', { className: 'body-strong' }, 'กำลังหาวัน'),
           h('p', { className: 'wg-finding__hint small' }, props.hint || 'ช่วยกันระบุวันว่าง แล้วผู้จัดจะเลือกช่วงที่ลงตัวที่สุด')));
     }
     var busy = props.busyNames || [];
     return h('section', { className: cx('wg-confirmed', props.className), 'aria-label': 'วันที่ยืนยัน' },
-      h(Face, { mood: 'party', size: 56, hop: true }),
+      h(StatusIcon, { kind: 'confirmed', size: 56, stamp: true }),
       h('div', { className: 'wg-confirmed__body' },
         h('p', { className: 'wg-confirmed__eyebrow small', style: { fontWeight: 600 } }, 'ยืนยันแล้ว!'),
         h('p', { className: 'wg-confirmed__dates title' }, props.confirmedLabel),
@@ -407,12 +392,12 @@
   }
 
   /* ---------------- Feedback ---------------- */
-  var BANNER_MOOD = { info: 'party', honey: 'unknown', success: 'free', danger: 'busy' };
+  var BANNER_ICON = { info: 'confirmed', honey: 'finding', success: 'free', danger: 'busy' };
   function Banner(props) {
     var tone = props.tone || 'info';
-    var mood = props.mood === undefined ? BANNER_MOOD[tone] : props.mood;
+    var icon = props.icon === undefined ? BANNER_ICON[tone] : props.icon;
     return h('div', { className: cx('wg-banner', 'wg-banner--' + tone, props.className), role: tone === 'danger' ? 'alert' : 'status' },
-      mood ? h(Face, { mood: mood, size: 32 }) : null,
+      icon ? h(StatusIcon, { kind: icon, size: 32 }) : null,
       h('div', { className: 'wg-banner__body' },
         props.title ? h('p', { className: 'wg-banner__title body-strong' }, props.title) : null,
         props.children ? h('div', { className: 'wg-banner__text small' }, props.children) : null,
@@ -422,7 +407,7 @@
 
   function EmptyState(props) {
     return h('div', { className: cx('wg-empty', props.className) },
-      h(Face, { mood: props.mood || 'sleepy', size: props.size || 72 }),
+      h(StatusIcon, { kind: props.icon || 'calendar', size: props.size || 72 }),
       h('h2', { className: 'wg-empty__title heading' }, props.title),
       props.children ? h('p', { className: 'wg-empty__text small' }, props.children) : null,
       props.action ? h('div', { className: 'wg-empty__action' }, props.action) : null);
@@ -477,7 +462,7 @@
       h('div', { className: cx('wg-sheet', 'wg-sheet--' + placement, docked && 'wg-sheet--docked', props.inline && 'wg-sheet--inline', props.className), role: 'dialog', 'aria-modal': !docked, 'aria-label': props.title },
         h('div', { className: 'wg-sheet__handle', 'aria-hidden': true }),
         h('div', { className: 'wg-sheet__head' },
-          props.face ? h(Face, { mood: props.face, size: 32 }) : null,
+          props.icon ? h(StatusIcon, { kind: props.icon, size: 32 }) : null,
           h('h2', { className: 'wg-sheet__title title' }, props.title),
           props.onClose ? h(IconButton, { icon: 'close', plain: true, label: 'ปิด', onClick: props.onClose }) : null),
         h('div', { className: 'wg-sheet__body' }, props.children),
@@ -494,7 +479,7 @@
     var createLabel = props.createLabel || 'สร้างทริป';
     return h('nav', { className: cx('wg-sidenav', props.className), 'aria-label': 'เมนูหลัก' },
       h('div', { className: 'wg-sidenav__brand' },
-        h('span', { className: 'wg-sidenav__mark' }, h(Face, { mood: 'party', size: 40 })),
+        h('span', { className: 'wg-sidenav__mark' }, h(StatusIcon, { kind: 'confirmed', size: 40, title: 'WeGoJUAN' })),
         h('span', { className: 'wg-sidenav__word' }, h(Wordmark, { href: props.homeHref }))),
       h('div', { className: 'wg-sidenav__create' },
         h('button', { type: 'button', className: 'wg-fab wg-sidenav__fab', 'aria-label': createLabel, onClick: props.onCreate }, h(Icon, { name: 'plus', size: 28 })),
@@ -514,7 +499,7 @@
           return h('li', { key: t.key || t.title }, h(Tag, Object.assign({
             className: 'wg-sidenav__trip small', 'aria-current': t.active ? 'page' : undefined, onClick: t.onClick
           }, t.href ? { href: t.href } : { type: 'button' }),
-            h(Face, { mood: t.mood || 'unknown', size: 24 }), h('span', null, t.title)));
+            h(StatusIcon, { kind: t.status || 'finding', size: 24 }), h('span', null, t.title)));
         }))) : null,
       props.user ? h('div', { className: 'wg-sidenav__user' },
         h(Initials, { name: props.user, size: 'md', decorative: true }),
@@ -555,7 +540,7 @@
   }
 
   var api = {
-    Button: Button, IconButton: IconButton, Icon: Icon, Face: Face, TextField: TextField, Checkbox: Checkbox,
+    Button: Button, IconButton: IconButton, Icon: Icon, StatusIcon: StatusIcon, TextField: TextField, Checkbox: Checkbox,
     StatusPicker: StatusPicker, Pill: Pill, Initials: Initials, AvatarStack: AvatarStack, MemberChip: MemberChip,
     MonthNav: MonthNav, MonthGrid: MonthGrid, DayCell: DayCell, CalendarLegend: CalendarLegend,
     TripCard: TripCard, SuggestionCard: SuggestionCard, ConfirmedDates: ConfirmedDates, InviteLinkBox: InviteLinkBox,

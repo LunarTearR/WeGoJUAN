@@ -4,44 +4,44 @@ Ready-made Thai lines for every state in the app. The first column is the plain 
 
 ## Trips list (ทริปของฉัน)
 
-| State | Title / label | Second line | Face |
+| State | Title / label | Second line | Icon |
 |---|---|---|---|
 | Greeting | ทริปของฉัน | สวัสดี {name} วันนี้ชวนใครไปไหนดี? | — |
-| Empty | ยังไม่มีทริปเลย | แก๊งเงียบไปนานแล้วนะ ชวนกันไปไหนสักที่ไหม? · CTA: สร้างทริปแรก | `sleepy` |
-| Start from calendar | เริ่มจากปฏิทินก่อนก็ได้ | ระบุวันว่างในปฏิทินของฉันครั้งเดียว ใช้ได้กับทุกทริป · CTA: ระบุวันว่าง | `sleepy` |
+| Empty | ยังไม่มีทริปเลย | แก๊งเงียบไปนานแล้วนะ ชวนกันไปไหนสักที่ไหม? · CTA: สร้างทริปแรก | `calendar` |
+| Start from calendar | เริ่มจากปฏิทินก่อนก็ได้ | ระบุวันว่างในปฏิทินของฉันครั้งเดียว ใช้ได้กับทุกทริป · CTA: ระบุวันว่าง | `calendar` |
 | Loading | — | กำลังโหลดทริป… | — |
 
 ## Creating & joining
 
-| State | Title / label | Second line | Face |
+| State | Title / label | Second line | Icon |
 |---|---|---|---|
-| Create intro | สร้างทริป | ตั้งชื่อ เลือกช่วงวันที่เปิดให้เลือก แล้วส่งลิงก์เข้ากลุ่ม ที่เหลือเราช่วยหาวันให้ | `free` |
+| Create intro | สร้างทริป | ตั้งชื่อ เลือกช่วงวันที่เปิดให้เลือก แล้วส่งลิงก์เข้ากลุ่ม ที่เหลือเราช่วยหาวันให้ | `calendar` |
 | Trip name | ชื่อทริป | placeholder: เช่น ทะเลกันมั้ย แก๊ง | — |
 | Duration | ไปกี่วัน | ไปติดกันกี่วัน เช่น 3 = ศุกร์ถึงอาทิตย์ | — |
-| Invite landing | {organizer} ชวนคุณไปเที่ยว! | {title} · เลือกได้ {range} · ไป {n} วัน · อยู่ในทริปแล้ว {count} คน | `party` |
+| Invite landing | {organizer} ชวนคุณไปเที่ยว! | {title} · เลือกได้ {range} · ไป {n} วัน · อยู่ในทริปแล้ว {count} คน | `finding`, or `confirmed` once the trip has dates |
 | Guest name | ชื่อที่ใช้ในทริปนี้ | placeholder: เพื่อน ๆ เรียกคุณว่าอะไร? | — |
 | Guest note | — | ระบบจำคุณได้เฉพาะเครื่องนี้ สมัครทีหลังได้ วันว่างไม่หาย | — |
 | Name taken | — | ชื่อนี้มีคนใช้ในทริปแล้ว ลองตั้งชื่ออื่น | — |
 | Start in the past (create, or a changed start when editing) | — | เลือกได้ตั้งแต่วันนี้ ({today}) เป็นต้นไป | — |
 | End before start (create, edit) | — | ต้องไม่ก่อนวันเริ่ม ({start}) | — |
-| Invalid link | ลิงก์เชิญนี้ใช้ไม่ได้แล้ว | อาจถูกเปลี่ยนไปแล้ว ลองขอลิงก์ใหม่จากผู้จัดนะ | `unknown` |
+| Invalid link | ลิงก์เชิญนี้ใช้ไม่ได้แล้ว | อาจถูกเปลี่ยนไปแล้ว ลองขอลิงก์ใหม่จากผู้จัดนะ | `busy` |
 
 ## Inside a trip
 
-| State | Title / label | Second line | Face |
+| State | Title / label | Second line | Icon |
 |---|---|---|---|
-| Finding dates | กำลังหาวัน | ช่วยกันระบุวันว่าง แล้วผู้จัดจะเลือกช่วงที่ลงตัวที่สุด | `unknown` |
-| Confirmed | ยืนยันแล้ว! | {dates} · จดไว้เลย ห้ามเทนะ | `party` (hop) |
+| Finding dates | กำลังหาวัน | ช่วยกันระบุวันว่าง แล้วผู้จัดจะเลือกช่วงที่ลงตัวที่สุด | `finding` |
+| Confirmed | ยืนยันแล้ว! | {dates} · จดไว้เลย ห้ามเทนะ | `confirmed` (stamps in) |
 | Busy on confirmed days | — | ไม่ว่างในวันที่ยืนยัน: {names} | — |
-| Confirm offer | กันวันไว้ในปฏิทินของฉันไหม? | จะทำเครื่องหมายไม่ว่าง {dates} จะได้ไม่ซ้อนกับนัดอื่น · กันวันไว้เลย / ไม่ต้อง | `party` |
-| Offer changed (409) | — | วันที่ยืนยันเพิ่งเปลี่ยน ดูวันใหม่แล้วตอบอีกครั้งนะ | `unknown` |
-| Re-push | ช่วงวันของทริปเปลี่ยนแล้ว | อัปเดตจากปฏิทินของฉันอีกรอบไหม? · อัปเดต | `unknown` |
-| Re-sync | ปฏิทินเปลี่ยนแล้ว | อัปเดตไปยังทริปเหล่านี้ด้วยไหม? | `unknown` |
+| Confirm offer | กันวันไว้ในปฏิทินของฉันไหม? | จะทำเครื่องหมายไม่ว่าง {dates} จะได้ไม่ซ้อนกับนัดอื่น · กันวันไว้เลย / ไม่ต้อง | `confirmed` |
+| Offer changed (409) | — | วันที่ยืนยันเพิ่งเปลี่ยน ดูวันใหม่แล้วตอบอีกครั้งนะ | `finding` |
+| Re-push | ช่วงวันของทริปเปลี่ยนแล้ว | อัปเดตจากปฏิทินของฉันอีกรอบไหม? · อัปเดต | `finding` |
+| Re-sync | ปฏิทินเปลี่ยนแล้ว | อัปเดตไปยังทริปเหล่านี้ด้วยไหม? | `finding` |
 | Suggestions heading | ช่วงวันที่แนะนำ | {n} ช่วง | — |
 | Best window | ลงตัวที่สุด | — | — |
 | Everyone free | — | ว่างครบทุกคน! ไปกันเลย | — |
 | Counts | — | ว่าง {a} · ติด {b} · ยังไม่ระบุ {u} | — |
-| No match | ยังหาวันที่ลงตัวไม่เจอ | ชวนเพื่อนมาระบุวันเพิ่มอีกนิด เดี๋ยวก็เจอ · CTA: ชวนเพื่อนมาระบุวัน | `unknown` |
+| No match | ยังหาวันที่ลงตัวไม่เจอ | ชวนเพื่อนมาระบุวันเพิ่มอีกนิด เดี๋ยวก็เจอ · CTA: ชวนเพื่อนมาระบุวัน | `finding` |
 | Loading suggestions | — | กำลังหาวันที่ทุกคนว่าง… | — |
 | Loading marks | — | กำลังนับหัวเพื่อน… | — |
 | Calendar hint | วันว่างของสมาชิก | แตะวันเพื่อตั้งวันของฉัน แล้วดูว่าใครว่างบ้าง | — |
@@ -53,7 +53,7 @@ Ready-made Thai lines for every state in the app. The first column is the plain 
 
 ## Calendars
 
-| State | Title / label | Second line | Face |
+| State | Title / label | Second line | Icon |
 |---|---|---|---|
 | My calendar | ปฏิทินของฉัน | ตั้งครั้งเดียว ใช้ได้กับทุกทริป | — |
 | Reason field | เหตุผล (ไม่บังคับ · เห็นแค่คุณ) | placeholder: เช่น ทำงาน, งานแต่งเพื่อน | — |

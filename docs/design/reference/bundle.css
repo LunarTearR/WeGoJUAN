@@ -8,7 +8,8 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
 
 /* ---------- motion ---------- */
 @keyframes wg-pop { 0% { transform: scale(.9); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
-@keyframes wg-hop { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-6px) rotate(-6deg); } 55% { transform: translateY(0) rotate(4deg); } 75% { transform: translateY(-2px) rotate(0); } }
+@keyframes wg-stamp { 0% { transform: scale(.6) rotate(-16deg); opacity: 0; } 60% { transform: scale(1.08) rotate(5deg); opacity: 1; } 100% { transform: none; opacity: 1; } }
+
 @keyframes wg-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes wg-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes wg-dialog { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
@@ -19,24 +20,18 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
   *, *::before, *::after { animation-duration: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 0ms !important; }
 }
 
-/* ---------- Icon & Face ---------- */
+/* ---------- Icon & StatusIcon ---------- */
 .wg-icon { display: inline-block; flex: none; vertical-align: middle; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .wg-icon .wg-fill { fill: currentColor; stroke: none; }
 
-.wg-face { display: inline-block; flex: none; vertical-align: middle; overflow: visible; }
-.wg-face * { stroke-linecap: round; stroke-linejoin: round; }
-.wg-face__bg { fill: var(--face-fill); stroke: var(--face-ink); stroke-width: 2; }
-.wg-face__line { fill: none; stroke: var(--face-ink); stroke-width: 2; }
-.wg-face__dot { fill: var(--face-ink); }
-.wg-face__blush { fill: var(--face-blush); }
-.wg-face__drop { fill: var(--surface); stroke: var(--face-ink); stroke-width: 1.5; }
-.wg-face--free { --face-fill: var(--free-soft); --face-ink: var(--free); --face-blush: var(--free-line); }
-.wg-face--busy { --face-fill: var(--busy-soft); --face-ink: var(--busy); --face-blush: var(--busy-line); }
-.wg-face--unknown { --face-fill: var(--surface); --face-ink: var(--ink-muted); --face-blush: var(--line); }
-.wg-face--unknown .wg-face__bg { stroke: var(--line-strong); stroke-dasharray: 3.4 3; }
-.wg-face--party { --face-fill: var(--orange); --face-ink: var(--on-orange); --face-blush: var(--peach-200); }
-.wg-face--sleepy { --face-fill: var(--peach-100); --face-ink: var(--orange-ink); --face-blush: var(--peach-200); }
-.wg-face--hop { animation: wg-hop 900ms var(--ease-out) 200ms 1; transform-origin: 50% 90%; }
+.wg-status { display: inline-grid; place-items: center; flex: none; box-sizing: border-box; border-radius: var(--radius-full); vertical-align: middle; }
+.wg-status svg { display: block; }
+.wg-status--finding, .wg-status--calendar { background: var(--sand); color: var(--ink-muted); }
+.wg-status--confirmed { background: var(--orange); color: var(--on-orange); }
+.wg-status--free { background: var(--free-soft); color: var(--free); }
+.wg-status--busy { background: var(--mist); color: var(--mist-ink); }
+.wg-status--unknown { background: var(--surface); color: var(--ink-muted); border: 1.5px dashed var(--line-strong); }
+.wg-status--stamp { animation: wg-stamp 520ms var(--ease-pop) 120ms both; }
 
 /* ---------- Button ---------- */
 .wg-btn { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: var(--space-12); padding: 0 var(--space-5); border: 1.5px solid transparent; border-radius: var(--radius-md); cursor: pointer; text-decoration: none; white-space: nowrap; user-select: none; transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out); }
@@ -91,10 +86,10 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
 .wg-seg__opt { appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: 72px; padding: var(--space-2); border: 1.5px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lip-quiet); margin-bottom: 3px; cursor: pointer; transition: transform var(--duration-fast) var(--ease-out); }
 .wg-seg__opt:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
 .wg-seg__opt:focus-visible { outline: none; box-shadow: var(--shadow-lip-quiet), var(--focus-ring); }
-.wg-seg__opt[aria-checked="true"] .wg-face { animation: wg-pop var(--duration-pop) var(--ease-pop); }
+.wg-seg__opt[aria-checked="true"] .wg-status { animation: wg-pop var(--duration-pop) var(--ease-pop); }
 .wg-seg__opt--free[aria-checked="true"] { background: var(--free-soft); border-color: var(--free); color: var(--free); box-shadow: 0 3px 0 var(--free-line); }
-.wg-seg__opt--busy[aria-checked="true"] { background: var(--busy-soft); border-color: var(--busy); color: var(--busy); box-shadow: 0 3px 0 var(--busy-line); }
-.wg-seg__opt--unknown[aria-checked="true"] { background: var(--peach-50); border-color: var(--line-strong); color: var(--ink); box-shadow: 0 3px 0 var(--line); }
+.wg-seg__opt--busy[aria-checked="true"] { background: var(--mist); border-color: var(--mist-ink); color: var(--mist-ink); box-shadow: 0 3px 0 var(--mist-line); }
+.wg-seg__opt--unknown[aria-checked="true"] { background: var(--surface); border-color: var(--line-strong); border-style: dashed; color: var(--ink); box-shadow: 0 3px 0 var(--line); }
 
 /* ---------- Pill, Initials, MemberChip ---------- */
 .wg-pill { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 24px; padding: 0 10px; border-radius: var(--radius-full); white-space: nowrap; }
@@ -104,6 +99,8 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
 .wg-pill--free { background: var(--free-soft); color: var(--free); }
 .wg-pill--busy { background: var(--busy-soft); color: var(--busy); }
 .wg-pill--honey { background: var(--honey-soft); color: var(--honey-ink); }
+.wg-pill--outline { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.wg-pill--status { min-height: 26px; padding-left: 4px; gap: 6px; }
 .wg-pill--neutral { background: var(--peach-50); color: var(--ink-muted); box-shadow: inset 0 0 0 1px var(--line); }
 
 .wg-initials { display: inline-grid; place-items: center; flex: none; min-width: 18px; height: 14px; padding: 0 2px; color: var(--on-status); }
@@ -185,14 +182,14 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
 .wg-sugg__rank { display: inline-grid; place-items: center; min-width: 28px; height: 24px; padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--peach-50); color: var(--ink-muted); box-shadow: inset 0 0 0 1px var(--line); }
 .wg-sugg__stat { flex: none; text-align: right; color: var(--free); }
 .wg-sugg__stat small { display: block; color: var(--ink-muted); }
-.wg-sugg__faces { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.wg-sugg__icons { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .wg-sugg__people { display: grid; gap: 2px; }
 .wg-sugg__counts { margin: 0; color: var(--ink-muted); }
 .wg-sugg__counts b { font-weight: 600; }
 .wg-sugg__counts .is-free { color: var(--free); }
-.wg-sugg__counts .is-busy { color: var(--busy); }
+.wg-sugg__counts .is-busy { color: var(--mist-ink); }
 .wg-sugg__line { margin: 0; }
-.wg-sugg__line--busy { color: var(--busy); }
+.wg-sugg__line--busy { color: var(--mist-ink); }
 .wg-sugg__line--unknown { color: var(--ink-muted); }
 .wg-sugg__line--all { color: var(--free); }
 .wg-sugg__actions { display: flex; align-items: center; gap: var(--space-2); }
@@ -225,6 +222,8 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
 .wg-banner--success { background: var(--free-soft); color: var(--ink); }
 .wg-banner--danger { background: var(--busy-soft); color: var(--ink); }
 .wg-banner__body { flex: 1; min-width: 0; padding-top: 2px; }
+/* on a tinted banner the soft circles would vanish into the tint, so they sit on white there */
+.wg-banner .wg-status:not(.wg-status--confirmed) { background: var(--surface); }
 .wg-banner__title { margin: 0; }
 .wg-banner__text { margin: 0; }
 .wg-banner--honey .wg-banner__text { color: var(--honey-ink); }
@@ -234,7 +233,7 @@ body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(
 .wg-banner--honey .wg-banner__close { color: var(--honey-ink); }
 
 .wg-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-8) var(--space-4); text-align: center; }
-.wg-empty .wg-face { margin-bottom: var(--space-2); }
+.wg-empty .wg-status { margin-bottom: var(--space-2); }
 .wg-empty__title { margin: 0; }
 .wg-empty__text { max-width: 30ch; margin: 0; color: var(--ink-muted); }
 .wg-empty__action { margin-top: var(--space-3); }
