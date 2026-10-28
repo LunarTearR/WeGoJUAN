@@ -6,13 +6,6 @@ export const statusLabel: Record<Status | 'unknown', string> = {
   unknown: 'ยังไม่ระบุ',
 }
 
-// สีของช่องวันที่ ใช้เหมือนกันทั้งปฏิทินส่วนตัวและตารางในทริป
-export function statusClass(s: Status | null): string {
-  if (s === 'free') return 'bg-green-500 text-white border-green-500'
-  if (s === 'busy') return 'bg-red-500 text-white border-red-500'
-  return 'bg-white text-gray-700 border-gray-300'
-}
-
 // ใช้ทำ optimistic update: เอา change ไปทับ list เดิม
 export function applyChanges(marks: Mark[], changes: MarkChange[]): Mark[] {
   const changed = new Set(changes.map((c) => c.day))

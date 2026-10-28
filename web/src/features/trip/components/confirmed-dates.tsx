@@ -1,4 +1,7 @@
-import { eachDay } from '@/lib/date'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { Face } from '@/components/ui/face'
+import { eachDay, formatWeekdayRange } from '@/lib/date'
 import { useClearConfirmed } from '../api/confirm-dates'
 import { useTripMarks } from '../api/get-trip-marks'
 import type { Member, Trip } from '../types'
@@ -9,13 +12,22 @@ type ConfirmedDatesProps = {
   isOrganizer: boolean
 }
 
-// สถานะทริป: กำลังหาวัน / ยืนยันแล้ว + เตือนถ้ามีสมาชิกไม่ว่างในวันที่ยืนยัน
+// สถานะทริปบนสุดของหน้า: การ์ดเส้นประ "กำลังหาวัน" หรือการ์ดส้ม "ยืนยันแล้ว!" (การ์ดส้มอันเดียวของหน้า)
+// + เตือนถ้ามีสมาชิกไม่ว่างในวันที่ยืนยัน ให้ผู้จัดตามต่อ
 export function ConfirmedDates({ trip, members, isOrganizer }: ConfirmedDatesProps) {
   const { data: marks } = useTripMarks(trip.id)
   const clearMutation = useClearConfirmed(trip.id)
 
   if (!trip.confirmed_start || !trip.confirmed_end) {
-    return <p className="inline-block rounded bg-gray-100 px-2 py-1 text-sm text-gray-700">กำลังหาวัน</p>
+    return (
+      <div className="wg-finding">
+        <Face mood="unknown" size={40} />
+        <div className="wg-finding__body">
+          <p className="body-strong">กำลังหาวัน</p>
+          <p className="wg-finding__hint small">ช่วยกันระบุวันว่าง แล้วผู้จัดจะเลือกช่วงที่ลงตัวที่สุด</p>
+        </div>
+      </div>
+    )
   }
 
   const days = new Set(eachDay(trip.confirmed_start, trip.confirmed_end))
@@ -23,16 +35,24 @@ export function ConfirmedDates({ trip, members, isOrganizer }: ConfirmedDatesPro
   const busyNames = members.filter((m) => busyIds.has(m.id)).map((m) => m.display_name)
 
   return (
-    <div className="space-y-1 rounded border border-green-300 bg-green-50 p-3 text-sm">
-      <p className="font-medium">
-        ยืนยันแล้ว: {trip.confirmed_start} ถึง {trip.confirmed_end}
-      </p>
-      {busyNames.length > 0 && <p className="text-red-700">ไม่ว่างในวันที่ยืนยัน: {busyNames.join(', ')}</p>}
-      {isOrganizer && (
-        <button type="button" disabled={clearMutation.isPending} onClick={() => clearMutation.mutate()} className="text-xs underline">
-          ยกเลิกวันที่ยืนยัน
-        </button>
-      )}
-    </div>
+    <section className="wg-confirmed" aria-label="วันที่ยืนยัน">
+      <Face mood="party" size={56} hop />
+      <div className="wg-confirmed__body">
+        <p className="wg-confirmed__eyebrow small font-semibold">ยืนยันแล้ว!</p>
+        <p className="wg-confirmed__dates title">{formatWeekdayRange(trip.confirmed_start, trip.confirmed_end)}</p>
+        <p className="wg-confirmed__note small">จดไว้เลย ห้ามเทนะ</p>
+        {busyNames.length > 0 && <p className="wg-confirmed__warn small">ไม่ว่างในวันที่ยืนยัน: {busyNames.join(', ')}</p>}
+        {isOrganizer && (
+          <Button variant="ghost" size="sm" loading={clearMutation.isPending} onClick={() => clearMutation.mutate()}>
+            ยกเลิกวันที่ยืนยัน
+          </Button>
+        )}
+        {clearMutation.error && (
+          <Banner tone="danger" className="mt-2">
+            ยกเลิกไม่สำเร็จ: {clearMutation.error.message}
+          </Banner>
+        )}
+      </div>
+    </section>
   )
 }

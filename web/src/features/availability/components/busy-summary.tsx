@@ -1,21 +1,54 @@
+import { Face } from '@/components/ui/face'
+import { Pill } from '@/components/ui/pill'
 import { formatDayRange } from '@/lib/date'
 import type { ISODate } from '@/types/date'
-import type { BusyRun } from '../utils/busy-runs'
+import { useMyMarks } from '../api/get-my-marks'
+import { busyRuns } from '../utils/busy-runs'
+import { monthRange } from '../utils/month-range'
 
-// สรุปวันไม่ว่างของเดือนที่แสดง พร้อมเหตุผล — กดแถวเพื่อเปิดวันแรกของช่วงนั้น
-export function BusySummary({ runs, onSelect }: { runs: BusyRun[]; onSelect: (day: ISODate) => void }) {
+type BusySummaryProps = {
+  year: number
+  month: number // 1-12
+  onSelect: (day: ISODate) => void
+}
+
+// สรุปวันไม่ว่างของเดือนที่แสดง พร้อมเหตุผล (เห็นแค่เจ้าของ) — กดแถวเพื่อเปิดวันแรกของช่วงนั้น
+// ใช้ query เดียวกับปฏิทิน (cache ร่วมกัน ไม่ยิงซ้ำ)
+export function BusySummary({ year, month, onSelect }: BusySummaryProps) {
+  const { from, to } = monthRange(year, month)
+  const { data: marks } = useMyMarks(from, to)
+
+  if (!marks) {
+    return null
+  }
+  // ระหว่างบันทึกช่วงข้ามเดือน optimistic update อาจใส่วันเดือนอื่นมาในรายการชั่วคราว — สรุปเฉพาะเดือนที่แสดง
+  const runs = busyRuns(marks.filter((m) => m.day >= from && m.day <= to))
   return (
-    <section aria-label="ไม่ว่างเดือนนี้" className="space-y-1 text-sm">
-      <h3 className="font-medium">ไม่ว่างเดือนนี้</h3>
+    <section aria-labelledby="busy-summary-title" className="wg-card">
+      <div className="wg-section-head items-center">
+        <h2 id="busy-summary-title" className="heading">
+          ไม่ว่างเดือนนี้
+        </h2>
+        <Pill tone="orange" icon="lock">
+          เห็นแค่คุณ
+        </Pill>
+      </div>
       {runs.length === 0 ? (
-        <p className="text-gray-500">ยังไม่มีวันไม่ว่างในเดือนนี้</p>
+        <p className="small wg-muted flex items-center gap-2">
+          <Face mood="free" size={28} />
+          เดือนนี้ว่างยาว ๆ เลย
+        </p>
       ) : (
-        <ul className="space-y-1">
+        <ul>
           {runs.map((r) => (
-            <li key={r.from}>
-              <button type="button" onClick={() => onSelect(r.from)} className="w-full rounded px-2 py-1 text-left hover:bg-gray-50">
-                <span className="text-red-700">{formatDayRange(r.from, r.to)}</span> ·{' '}
-                {r.reason ? r.reason : <span className="text-gray-500">(ไม่ระบุเหตุผล)</span>}
+            <li key={r.from} className="border-line not-last:border-b">
+              <button
+                type="button"
+                onClick={() => onSelect(r.from)}
+                className="flex min-h-11 w-full cursor-pointer items-baseline gap-4 rounded-control py-3 text-left hover:bg-peach-50 focus-visible:shadow-[var(--focus-ring)] focus-visible:outline-none"
+              >
+                <span className="small w-24 shrink-0 font-semibold text-busy">{formatDayRange(r.from, r.to)}</span>
+                {r.reason ? <span className="body">{r.reason}</span> : <span className="small wg-muted">(ไม่ระบุเหตุผล)</span>}
               </button>
             </li>
           ))}

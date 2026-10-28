@@ -1,36 +1,62 @@
-import type { ReactNode } from 'react'
-import { NavLink, Outlet } from 'react-router'
-import { ApiStatus } from './api-status'
+import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
+import { cx } from '@/lib/cx'
+import { BottomNav } from './bottom-nav'
+import { LayoutContext, ShellRootContext, layoutFor, type Layout } from './layout-context'
+import type { NavKey } from './nav-items'
+import { SideNav, type RecentTrip } from './side-nav'
 
 type AppShellProps = {
-  actions?: ReactNode // มุมขวาของ header เช่นเมนูผู้ใช้ (ส่งมาจาก app เพราะ shared import feature ไม่ได้)
+  children?: ReactNode // ปกติคือ PageLayout ของหน้านั้น
+  active?: NavKey
+  user?: string // ชื่อที่แสดงในรูปย่อชื่อของ rail/แถบข้าง
+  onUserClick?: () => void
+  trips?: RecentTrip[]
+  bottomNav?: boolean // false = ไม่มี BottomNav บนมือถือ (ในทริป และหน้าที่มีปุ่มหลักติดล่าง)
 }
 
-// layout หลักของทุกหน้า: header ด้านบน แล้ว render หน้าปัจจุบันใน <Outlet />
-export function AppShell({ actions }: AppShellProps) {
+// อุปกรณ์สองจอ (Surface Duo กางสองจอ): เบราว์เซอร์รายงาน viewport สองท่อนซ้ายขวา
+const SPLIT_QUERY = '(horizontal-viewport-segments: 2)'
+
+function useViewportSegments(): boolean {
+  const [split, setSplit] = useState(() => window.matchMedia(SPLIT_QUERY).matches)
+  useEffect(() => {
+    const query = window.matchMedia(SPLIT_QUERY)
+    const onChange = () => setSplit(query.matches)
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [])
+  return split
+}
+
+// กรอบของทุกหน้า: เลือก layout จากความกว้างของตัวเอง (container query ใน CSS + ResizeObserver ที่นี่)
+// แล้วสลับการนำทาง: compact → BottomNav · medium → rail · expanded → แถบข้าง · split → BottomNav บนจอซ้าย
+export function AppShell({ children, active, user, onUserClick, trips, bottomNav = true }: AppShellProps) {
+  const split = useViewportSegments()
+  const [root, setRoot] = useState<HTMLDivElement | null>(null)
+  const [layout, setLayout] = useState<Layout>(() => layoutFor(window.innerWidth, split))
+
+  // วัดก่อนวาดจริง ไม่งั้นจอใหญ่จะเห็น layout มือถือแวบหนึ่ง
+  useLayoutEffect(() => {
+    if (!root) return
+    // offsetWidth = ความกว้างตาม layout ไม่โดน transform
+    const measure = () => setLayout(layoutFor(root.offsetWidth, split))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [root, split])
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-3">
-        <nav className="flex items-center gap-4">
-          <NavLink to="/trips" className="font-semibold">
-            WeGoJUAN
-          </NavLink>
-          <NavLink to="/trips" className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
-            ทริปของฉัน
-          </NavLink>
-          <NavLink to="/calendar" className={({ isActive }) => `text-sm ${isActive ? 'underline' : ''}`}>
-            ปฏิทินของฉัน
-          </NavLink>
-        </nav>
-        <div className="flex items-center gap-4">
-          {actions}
-          {/* ตัวช่วยตอน dev เท่านั้น — production ไม่ต้องโชว์สถานะ API */}
-          {import.meta.env.DEV && <ApiStatus />}
+    <LayoutContext.Provider value={layout}>
+      <ShellRootContext.Provider value={root}>
+        <div ref={setRoot} className={cx('wg-app', `wg-app--${layout}`, split && 'wg-app--split')} data-layout={layout}>
+          <div className="wg-app__frame">
+            <SideNav active={active} trips={trips} user={user} onUserClick={onUserClick} />
+            <main className={cx('wg-app__main', bottomNav && 'wg-app__main--nav')}>{children}</main>
+          </div>
+          {bottomNav && <BottomNav active={active} />}
         </div>
-      </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
-        <Outlet />
-      </main>
-    </div>
+      </ShellRootContext.Provider>
+    </LayoutContext.Provider>
   )
 }

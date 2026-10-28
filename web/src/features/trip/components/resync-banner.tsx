@@ -1,4 +1,5 @@
-import { Link } from 'react-router'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
 import type { ISODate } from '@/types/date'
 import { useResyncTrips } from '../api/get-resync-trips'
 
@@ -17,20 +18,17 @@ export function ResyncBanner({ days, onDismiss, excludeTripId }: ResyncBannerPro
     return null
   }
   return (
-    <div className="space-y-1 rounded border border-amber-300 bg-amber-50 p-3 text-sm">
-      <p>ปฏิทินเปลี่ยนแล้ว — อัปเดตไปยังทริป:</p>
-      <ul className="list-inside list-disc">
-        {trips.map((t) => (
-          <li key={t.id}>
-            <Link to={`/trips/${t.id}?push=1`} className="underline">
-              {t.title}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      <button type="button" onClick={onDismiss} className="text-xs underline">
-        ปิด
-      </button>
-    </div>
+    <Banner
+      tone="honey"
+      title="ปฏิทินเปลี่ยนแล้ว"
+      onDismiss={onDismiss}
+      actions={trips.map((t) => (
+        <Button key={t.id} variant="secondary" size="sm" icon="refresh" href={`/trips/${t.id}?push=1`}>
+          {t.title}
+        </Button>
+      ))}
+    >
+      อัปเดตไปยังทริปเหล่านี้ด้วยไหม?
+    </Banner>
   )
 }

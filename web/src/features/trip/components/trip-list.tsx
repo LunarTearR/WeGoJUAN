@@ -1,40 +1,73 @@
-import { Link } from 'react-router'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { formatDayRange } from '@/lib/date'
 import { useMyTrips } from '../api/get-my-trips'
+import { TripCard } from './trip-card'
 
 export function TripList() {
-  const { data: trips, isPending, error } = useMyTrips()
+  const { data: trips, isPending, error, refetch } = useMyTrips()
 
   if (isPending) {
-    return <p className="text-gray-500">กำลังโหลดทริป…</p>
+    return <p className="small wg-muted">กำลังโหลดทริป…</p>
   }
   if (error) {
-    return <p className="text-red-700">โหลดทริปไม่สำเร็จ: {error.message}</p>
+    return (
+      <Banner
+        tone="danger"
+        title="โหลดไม่สำเร็จ"
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => refetch()}>
+            ลองอีกครั้ง
+          </Button>
+        }
+      >
+        {error.message}
+      </Banner>
+    )
   }
   if (trips.length === 0) {
     return (
-      <div className="space-y-2">
-        <p>ยังไม่มีทริป ลองสร้างทริปแรกดู</p>
-        <p className="text-sm text-gray-600">
-          หรือเริ่มจาก{' '}
-          <Link to="/calendar" className="underline">
-            ระบุวันว่างในปฏิทินของฉัน
-          </Link>{' '}
-          ไว้ใช้กับทุกทริป
-        </p>
-      </div>
+      <>
+        <div className="wg-card">
+          <EmptyState
+            title="ยังไม่มีทริปเลย"
+            action={
+              <Button href="/trips/new" icon="plus">
+                สร้างทริปแรก
+              </Button>
+            }
+          >
+            แก๊งเงียบไปนานแล้วนะ ชวนกันไปไหนสักที่ไหม?
+          </EmptyState>
+        </div>
+        <Banner
+          tone="info"
+          mood="sleepy"
+          title="เริ่มจากปฏิทินก่อนก็ได้"
+          actions={
+            <Button variant="secondary" size="sm" icon="calendar" href="/calendar">
+              ระบุวันว่าง
+            </Button>
+          }
+        >
+          ระบุวันว่างในปฏิทินของฉันครั้งเดียว ใช้ได้กับทุกทริป
+        </Banner>
+      </>
     )
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="wg-card-grid">
       {trips.map((t) => (
         <li key={t.id}>
-          <Link to={`/trips/${t.id}`} className="block rounded border border-gray-200 p-3 hover:bg-gray-50">
-            <span className="font-medium">{t.title}</span>
-            <span className="block text-sm text-gray-600">
-              {t.start_date} ถึง {t.end_date} · ไป {t.duration_days} วัน
-            </span>
-          </Link>
+          <TripCard
+            title={t.title}
+            rangeLabel={formatDayRange(t.start_date, t.end_date)}
+            durationDays={t.duration_days}
+            confirmedLabel={t.confirmed_start && t.confirmed_end ? formatDayRange(t.confirmed_start, t.confirmed_end) : undefined}
+            href={`/trips/${t.id}`}
+          />
         </li>
       ))}
     </ul>
