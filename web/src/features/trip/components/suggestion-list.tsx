@@ -52,7 +52,7 @@ export function SuggestionList({ trip, members, isOrganizer }: SuggestionListPro
       )}
       {suggestions && top.length === 0 && (
         <EmptyState
-          mood="unknown"
+          icon="finding"
           title="ยังหาวันที่ลงตัวไม่เจอ"
           action={
             // ลิงก์เชิญอยู่ในหน้าเดียวกัน (InviteLinkBox id="invite")

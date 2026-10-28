@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Face } from '@/components/ui/face'
 import { Sheet } from '@/components/ui/sheet'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { eachDay, formatDayRange } from '@/lib/date'
 import { statusLabel } from '@/lib/mark'
 import type { Status } from '@/types/mark'
@@ -76,7 +76,7 @@ export function PushPanel({ trip, onDone }: PushPanelProps) {
         )}
         {inSync && (
           <p className="body flex items-center gap-3">
-            <Face mood="free" size={32} />
+            <StatusIcon kind="free" size={32} />
             ทริปตรงกับปฏิทินแล้ว
           </p>
         )}

@@ -2,8 +2,8 @@ import { useContext, useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ShellRootContext, useLayout } from '@/components/layout/layout-context'
 import { cx } from '@/lib/cx'
-import { Face, type Mood } from './face'
 import { IconButton } from './icon-button'
+import { StatusIcon, type StatusKind } from './status-icon'
 
 type SheetProps = {
   open: boolean
@@ -11,7 +11,7 @@ type SheetProps = {
   onClose?: () => void
   children?: ReactNode
   footer?: ReactNode // ปุ่มเรียงเต็มแถวเท่า ๆ กัน
-  face?: Mood // ห้ามใส่ในแผ่นยืนยันการลบ/ออก
+  icon?: StatusKind // ไอคอนสถานะที่หัวแผ่น — ห้ามใส่ในแผ่นยืนยันการลบ/ออก
   // center = ยืนยัน: แผ่นล่างบนมือถือ กล่องกลางจอตั้งแต่แท็บเล็ต
   // side = วันในปฏิทิน: แผ่นล่างบนมือถือ แผงลอยบนแท็บเล็ต ลิ้นชักขวาบน PC (ไม่บังหน้า) จอขวาตอน split
   placement?: 'center' | 'side'
@@ -19,7 +19,7 @@ type SheetProps = {
 }
 
 // ปิดได้ทั้งแตะฉากมืด ปุ่มปิด และ Esc
-export function Sheet({ open, title, onClose, children, footer, face, placement = 'center', className }: SheetProps) {
+export function Sheet({ open, title, onClose, children, footer, icon, placement = 'center', className }: SheetProps) {
   const layout = useLayout()
   const shellRoot = useContext(ShellRootContext)
 
@@ -47,7 +47,7 @@ export function Sheet({ open, title, onClose, children, footer, face, placement 
       >
         <div className="wg-sheet__handle" aria-hidden />
         <div className="wg-sheet__head">
-          {face && <Face mood={face} size={32} />}
+          {icon && <StatusIcon kind={icon} size={32} />}
           <h2 className="wg-sheet__title title">{title}</h2>
           {onClose && <IconButton icon="close" plain label="ปิด" onClick={onClose} />}
         </div>

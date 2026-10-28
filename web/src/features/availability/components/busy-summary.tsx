@@ -1,5 +1,5 @@
-import { Face } from '@/components/ui/face'
 import { Pill } from '@/components/ui/pill'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { formatDayRange } from '@/lib/date'
 import type { ISODate } from '@/types/date'
 import { useMyMarks } from '../api/get-my-marks'
@@ -35,7 +35,7 @@ export function BusySummary({ year, month, onSelect }: BusySummaryProps) {
       </div>
       {runs.length === 0 ? (
         <p className="small wg-muted flex items-center gap-2">
-          <Face mood="free" size={28} />
+          <StatusIcon kind="free" size={28} />
           เดือนนี้ว่างยาว ๆ เลย
         </p>
       ) : (

@@ -3,7 +3,7 @@ import { AppBar } from '@/components/layout/app-bar'
 import { PageLayout } from '@/components/layout/page-layout'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Face } from '@/components/ui/face'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { formatDayRange } from '@/lib/date'
 import { useMe } from '@/features/auth/api/get-me'
 import { useInvite } from '@/features/trip/api/get-invite'
@@ -31,7 +31,7 @@ function Join() {
   }
   if (error) {
     return (
-      <EmptyState mood="unknown" title="ลิงก์เชิญนี้ใช้ไม่ได้แล้ว">
+      <EmptyState icon="busy" title="ลิงก์เชิญนี้ใช้ไม่ได้แล้ว">
         อาจถูกเปลี่ยนไปแล้ว ลองขอลิงก์ใหม่จากผู้จัดนะ
       </EmptyState>
     )
@@ -40,7 +40,7 @@ function Join() {
   return (
     <div className="wg-stack">
       <div className="flex flex-col items-center gap-2 py-4 text-center">
-        <Face mood="party" size={88} />
+        <StatusIcon kind="finding" size={88} />
         <p className="small font-semibold text-orange-ink">เพื่อนชวนคุณไปเที่ยว!</p>
         <h1 className="title">{invite.title}</h1>
         <p className="small wg-muted">

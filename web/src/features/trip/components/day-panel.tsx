@@ -23,7 +23,7 @@ export function DayPanel({ day, mine, friends, isConfirmed, onSet, onClose }: Da
   const unknown = friends.filter((f) => f.status === null)
 
   return (
-    <Sheet open placement="side" title={formatThaiDay(day)} face={isConfirmed ? 'party' : undefined} onClose={onClose}>
+    <Sheet open placement="side" title={formatThaiDay(day)} icon={isConfirmed ? 'confirmed' : undefined} onClose={onClose}>
       <div className="wg-stack">
         <p className="small wg-muted">{isConfirmed ? 'วันที่ยืนยัน · วันของฉัน' : 'วันของฉัน'}</p>
         <StatusPicker value={mine} onChange={onSet} />
@@ -32,7 +32,7 @@ export function DayPanel({ day, mine, friends, isConfirmed, onSet, onClose }: Da
             <p className="small wg-muted mb-2">เพื่อน</p>
             <div className="wg-row">
               {marked.map((f) => (
-                <Pill key={f.member.id} tone={f.status ?? undefined} face={f.status ?? undefined}>
+                <Pill key={f.member.id} status={f.status ?? undefined}>
                   {f.member.display_name}
                   <span className="sr-only"> {statusLabel[f.status ?? 'unknown']}</span>
                 </Pill>
