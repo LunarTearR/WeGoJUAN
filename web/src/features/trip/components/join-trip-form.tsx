@@ -1,5 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
+import { FormFooter } from '@/components/layout/form-footer'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import { ApiError } from '@/lib/api-client'
 import { useJoinTrip } from '../api/join-trip'
@@ -7,10 +10,11 @@ import { useJoinTrip } from '../api/join-trip'
 type JoinTripFormProps = {
   code: string
   asGuest?: boolean // Guest ต้องตั้งชื่อเสมอ, User ใช้ชื่อบัญชีได้เลย
+  footerLink?: ReactNode // ลิงก์รองใต้ปุ่มหลัก เช่น "มีบัญชีแล้ว? เข้าสู่ระบบ"
 }
 
 // User กดเข้าร่วมได้เลยด้วยชื่อบัญชี — ถ้าชื่อซ้ำกับคนในทริป (409) ค่อยให้ตั้งชื่ออื่น
-export function JoinTripForm({ code, asGuest = false }: JoinTripFormProps) {
+export function JoinTripForm({ code, asGuest = false, footerLink }: JoinTripFormProps) {
   const [displayName, setDisplayName] = useState('')
   const [askName, setAskName] = useState(asGuest)
   const navigate = useNavigate()
@@ -28,17 +32,32 @@ export function JoinTripForm({ code, asGuest = false }: JoinTripFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="wg-stack">
       {askName && (
-        <TextField label="ชื่อที่ใช้ในทริปนี้" required maxLength={50} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+        <div className="wg-card">
+          <TextField
+            label="ชื่อที่ใช้ในทริปนี้"
+            placeholder="เพื่อน ๆ เรียกคุณว่าอะไร?"
+            required
+            maxLength={50}
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            error={nameTaken ? 'ชื่อนี้มีคนใช้ในทริปแล้ว ลองตั้งชื่ออื่น' : undefined}
+            hint={asGuest ? 'ระบบจำคุณได้เฉพาะเครื่องนี้ สมัครทีหลังได้ วันว่างไม่หาย' : undefined}
+          />
+        </div>
       )}
-      <button type="submit" disabled={joinMutation.isPending} className="w-full rounded bg-gray-900 px-3 py-2 text-white disabled:opacity-50">
-        {asGuest ? 'เข้าร่วมแบบไม่สมัครสมาชิก' : 'เข้าร่วมทริป'}
-      </button>
-      {joinMutation.error && (
-        <p className="text-sm text-red-700">{nameTaken ? 'ชื่อนี้มีคนใช้ในทริปแล้ว ลองตั้งชื่ออื่น' : joinMutation.error.message}</p>
+      {joinMutation.error && !nameTaken && (
+        <Banner tone="danger" title="อุ๊ย เข้าร่วมไม่สำเร็จ">
+          {joinMutation.error.message}
+        </Banner>
       )}
-      {asGuest && <p className="text-xs text-gray-500">ระบบจำคุณได้เฉพาะเครื่องนี้ (ล้างข้อมูลเบราว์เซอร์แล้วจะแก้วันของตัวเองไม่ได้)</p>}
+      <FormFooter>
+        <Button type="submit" block loading={joinMutation.isPending}>
+          {asGuest ? 'เข้าร่วมแบบไม่สมัครสมาชิก' : 'เข้าร่วมทริป'}
+        </Button>
+        {footerLink}
+      </FormFooter>
     </form>
   )
 }
