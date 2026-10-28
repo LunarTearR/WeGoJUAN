@@ -22,6 +22,8 @@ Ready-made Thai lines for every state in the app. The first column is the plain 
 | Guest name | ชื่อที่ใช้ในทริปนี้ | placeholder: เพื่อน ๆ เรียกคุณว่าอะไร? | — |
 | Guest note | — | ระบบจำคุณได้เฉพาะเครื่องนี้ สมัครทีหลังได้ วันว่างไม่หาย | — |
 | Name taken | — | ชื่อนี้มีคนใช้ในทริปแล้ว ลองตั้งชื่ออื่น | — |
+| Start in the past (create, or a changed start when editing) | — | เลือกได้ตั้งแต่วันนี้ ({today}) เป็นต้นไป | — |
+| End before start (create, edit) | — | ต้องไม่ก่อนวันเริ่ม ({start}) | — |
 | Invalid link | ลิงก์เชิญนี้ใช้ไม่ได้แล้ว | อาจถูกเปลี่ยนไปแล้ว ลองขอลิงก์ใหม่จากผู้จัดนะ | `unknown` |
 
 ## Inside a trip
@@ -56,6 +58,8 @@ Ready-made Thai lines for every state in the app. The first column is the plain 
 | My calendar | ปฏิทินของฉัน | ตั้งครั้งเดียว ใช้ได้กับทุกทริป | — |
 | Reason field | เหตุผล (ไม่บังคับ · เห็นแค่คุณ) | placeholder: เช่น ทำงาน, งานแต่งเพื่อน | — |
 | Until-date | ถึงวันที่ (ไม่บังคับ) | ตั้งหลายวันพร้อมกันได้ | — |
+| Until before the day | — | ต้องไม่ก่อนวันที่เลือก ({day}) | — |
+| Until too far | — | เลือกได้ไม่เกิน 366 วัน | — |
 | Save | บันทึก (จะเปลี่ยน {n} วัน) | — | — |
 | Busy summary | ไม่ว่างเดือนนี้ | pill: เห็นแค่คุณ | — |
 | Busy summary empty | — | เดือนนี้ว่างยาว ๆ เลย | `free` |
