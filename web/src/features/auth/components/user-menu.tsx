@@ -1,28 +1,30 @@
-import { Link } from 'react-router'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Initials } from '@/components/ui/initials'
 import { useMe } from '../api/get-me'
-import { useLogout } from '../api/logout'
+import { AccountSheet } from './account-sheet'
 
-// มุมขวาของ header: ชื่อ + ออกจากระบบ หรือปุ่มเข้าสู่ระบบ
+// มุมขวาของ AppBar: รูปย่อชื่อ (กดแล้วเปิดแผ่นบัญชี) หรือปุ่มเข้าสู่ระบบ
 export function UserMenu() {
   const { data: me } = useMe()
-  const logoutMutation = useLogout()
+  const [open, setOpen] = useState(false)
 
   if (me === undefined) {
     return null
   }
   if (me === null) {
     return (
-      <Link to="/login" className="text-sm underline">
+      <Button variant="ghost" size="sm" href="/login">
         เข้าสู่ระบบ
-      </Link>
+      </Button>
     )
   }
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <span>{me.display_name}</span>
-      <button type="button" onClick={() => logoutMutation.mutate()} disabled={logoutMutation.isPending} className="underline">
-        ออกจากระบบ
+    <>
+      <button type="button" className="wg-iconbtn wg-iconbtn--plain" aria-label={`บัญชีของฉัน (${me.display_name})`} onClick={() => setOpen(true)}>
+        <Initials name={me.display_name} size="md" decorative />
       </button>
-    </div>
+      <AccountSheet open={open} onClose={() => setOpen(false)} />
+    </>
   )
 }

@@ -1,12 +1,14 @@
-import { Link } from 'react-router'
+import { PageLayout } from '@/components/layout/page-layout'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { HomeAppBar } from '@/app/home-app-bar'
 
 export function NotFoundRoute() {
   return (
-    <section className="space-y-2">
-      <h1 className="text-xl font-semibold">ไม่พบหน้านี้</h1>
-      <Link to="/" className="underline">
-        กลับไปที่ปฏิทินของฉัน
-      </Link>
-    </section>
+    <PageLayout header={<HomeAppBar />}>
+      <EmptyState mood="unknown" title="หลงทางแล้ว" action={<Button href="/trips">กลับไปที่ทริปของฉัน</Button>}>
+        หน้านี้ไม่มีอยู่จริง
+      </EmptyState>
+    </PageLayout>
   )
 }

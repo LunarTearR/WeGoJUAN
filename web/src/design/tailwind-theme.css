@@ -1,0 +1,41 @@
+/* WeGoJUAN tokens as Tailwind v4 utilities: bg-cream, text-orange-ink, bg-free-soft, border-line-strong,
+   font-brand, rounded-card … The values live in tokens.css; this file only points at them. */
+@theme inline {
+  --color-cream: var(--cream);
+  --color-surface: var(--surface);
+  --color-peach-50: var(--peach-50);
+  --color-peach-100: var(--peach-100);
+  --color-peach-200: var(--peach-200);
+  --color-orange: var(--orange);
+  --color-orange-deep: var(--orange-deep);
+  --color-orange-ink: var(--orange-ink);
+  --color-on-orange: var(--on-orange);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-free: var(--free);
+  --color-free-soft: var(--free-soft);
+  --color-free-line: var(--free-line);
+  --color-busy: var(--busy);
+  --color-busy-soft: var(--busy-soft);
+  --color-busy-line: var(--busy-line);
+  --color-on-status: var(--on-status);
+  --color-honey-soft: var(--honey-soft);
+  --color-honey-ink: var(--honey-ink);
+  --color-danger: var(--danger);
+
+  /* new names, so nothing points at itself */
+  --font-brand: var(--font-display);
+  --font-body: var(--font-sans);
+  --radius-control: var(--radius-md);
+  --radius-card: var(--radius-lg);
+  --radius-sheet: var(--radius-xl);
+}
+
+/* Container-query variants that match the layout tokens: @medium: (600px, tablet) and @expanded: (1024px, PC).
+   The app shell (.wg-app) is the container, so these follow the app's width, not the device's. */
+@theme {
+  --container-medium: 600px;
+  --container-expanded: 1024px;
+}

@@ -1,10 +1,13 @@
+import { useNavigate } from 'react-router'
+import { AppBar } from '@/components/layout/app-bar'
+import { PageLayout } from '@/components/layout/page-layout'
 import { CreateTripForm } from '@/features/trip/components/create-trip-form'
 
 export function TripNewRoute() {
+  const navigate = useNavigate()
   return (
-    <section className="mx-auto max-w-md space-y-4">
-      <h1 className="text-xl font-semibold">สร้างทริป</h1>
+    <PageLayout header={<AppBar title="สร้างทริป" onBack={() => navigate('/trips')} backLabel="กลับไปที่ทริปของฉัน" />}>
       <CreateTripForm />
-    </section>
+    </PageLayout>
   )
 }

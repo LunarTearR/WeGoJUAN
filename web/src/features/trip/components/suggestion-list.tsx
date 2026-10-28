@@ -1,8 +1,15 @@
+import { useState } from 'react'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { formatWeekdayRange } from '@/lib/date'
 import { useConfirmDates } from '../api/confirm-dates'
 import { useSuggestions } from '../api/get-suggestions'
 import type { Member, Trip } from '../types'
+import { SuggestionCard } from './suggestion-card'
 
-const TOP = 5
+const TOP = 5 // ช่วงทั้งหมดที่โชว์
+const FIRST = 3 // โชว์ก่อน ที่เหลือซ่อนไว้หลัง "ดูเพิ่ม"
 
 type SuggestionListProps = {
   trip: Trip
@@ -11,48 +18,84 @@ type SuggestionListProps = {
 }
 
 export function SuggestionList({ trip, members, isOrganizer }: SuggestionListProps) {
-  const { data: suggestions, isPending, error } = useSuggestions(trip.id)
+  const { data: suggestions, isPending, error, refetch } = useSuggestions(trip.id)
   const confirmMutation = useConfirmDates(trip.id)
+  const [showAll, setShowAll] = useState(false)
 
-  if (isPending) {
-    return <p className="text-gray-500">กำลังหาช่วงวันที่ลงตัว…</p>
-  }
-  if (error) {
-    return <p className="text-red-700">หาช่วงวันไม่สำเร็จ: {error.message}</p>
-  }
-  if (suggestions.length === 0) {
-    return <p>ยังไม่มีช่วงวันที่เหมาะ — ชวนสมาชิกระบุวันเพิ่ม</p>
-  }
-
+  const top = suggestions?.slice(0, TOP) ?? []
+  const shown = showAll ? top : top.slice(0, FIRST)
   const nameOf = new Map(members.map((m) => [m.id, m.display_name]))
-  const names = (ids: string[]) => ids.map((id) => nameOf.get(id) ?? '?').join(', ')
+  const names = (ids: string[]) => ids.map((id) => nameOf.get(id) ?? '?')
 
   return (
-    <ol className="space-y-2">
-      {confirmMutation.error && <p className="text-sm text-red-700">ยืนยันไม่สำเร็จ: {confirmMutation.error.message}</p>}
-      {suggestions.slice(0, TOP).map((s) => (
-        <li key={s.start} aria-label={`ช่วง ${s.start} ถึง ${s.end}`} className="rounded border border-gray-200 p-3">
-          <p className="font-medium">
-            {s.start} ถึง {s.end}
-            {trip.confirmed_start === s.start && <span className="ml-2 text-xs text-green-700">(ยืนยันแล้ว)</span>}
-          </p>
-          <p className="text-sm">
-            ว่าง {s.available.length} · ติด {s.busy.length} · ยังไม่ระบุ {s.unknown.length}
-          </p>
-          {s.busy.length > 0 && <p className="text-sm text-red-700">ติด: {names(s.busy)}</p>}
-          {s.unknown.length > 0 && <p className="text-sm text-gray-600">ยังไม่ระบุ: {names(s.unknown)}</p>}
-          {isOrganizer && trip.confirmed_start !== s.start && (
-            <button
-              type="button"
-              disabled={confirmMutation.isPending}
-              onClick={() => confirmMutation.mutate(s.start)}
-              className="mt-2 rounded border border-gray-300 px-2 py-1 text-xs"
-            >
-              เลือกช่วงนี้
-            </button>
-          )}
-        </li>
-      ))}
-    </ol>
+    <section aria-labelledby="suggestions-title">
+      <div className="wg-section-head">
+        <h2 id="suggestions-title" className="heading">
+          ช่วงวันที่แนะนำ
+        </h2>
+        {top.length > 0 && <span className="small wg-muted">{top.length} ช่วง</span>}
+      </div>
+
+      {isPending && <p className="small wg-muted">กำลังหาวันที่ทุกคนว่าง…</p>}
+      {error && (
+        <Banner
+          tone="danger"
+          title="โหลดไม่สำเร็จ"
+          actions={
+            <Button variant="secondary" size="sm" onClick={() => refetch()}>
+              ลองอีกครั้ง
+            </Button>
+          }
+        >
+          {error.message}
+        </Banner>
+      )}
+      {suggestions && top.length === 0 && (
+        <EmptyState
+          mood="unknown"
+          title="ยังหาวันที่ลงตัวไม่เจอ"
+          action={
+            // ลิงก์เชิญอยู่ในหน้าเดียวกัน (InviteLinkBox id="invite")
+            <Button variant="secondary" icon="users" onClick={() => document.getElementById('invite')?.scrollIntoView({ behavior: 'smooth' })}>
+              ชวนเพื่อนมาระบุวัน
+            </Button>
+          }
+        >
+          ชวนเพื่อนมาระบุวันเพิ่มอีกนิด เดี๋ยวก็เจอ
+        </EmptyState>
+      )}
+
+      {confirmMutation.error && (
+        <Banner tone="danger" title="อุ๊ย ยืนยันไม่สำเร็จ" className="mb-3">
+          {confirmMutation.error.message}
+        </Banner>
+      )}
+      {shown.length > 0 && (
+        <div className="wg-card-grid">
+          {shown.map((s, i) => (
+            <SuggestionCard
+              key={s.start}
+              rank={i + 1}
+              rangeLabel={formatWeekdayRange(s.start, s.end)}
+              durationDays={trip.duration_days}
+              available={names(s.available)}
+              busy={names(s.busy)}
+              unknown={names(s.unknown)}
+              canConfirm={isOrganizer}
+              onConfirm={() => confirmMutation.mutate(s.start)}
+              confirming={confirmMutation.isPending && confirmMutation.variables === s.start}
+              isConfirmed={trip.confirmed_start === s.start}
+            />
+          ))}
+        </div>
+      )}
+      {top.length > shown.length && (
+        <div className="mt-3 flex justify-center">
+          <Button variant="ghost" iconEnd="chevron-right" onClick={() => setShowAll(true)}>
+            ดูเพิ่มอีก {top.length - shown.length} ช่วง
+          </Button>
+        </div>
+      )}
+    </section>
   )
 }

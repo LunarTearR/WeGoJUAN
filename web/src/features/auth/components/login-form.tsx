@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import { useLogin } from '../api/login'
 import { safeNext } from '../utils/safe-next'
@@ -18,7 +20,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="wg-stack">
       <TextField label="อีเมล" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
       <TextField
         label="รหัสผ่าน"
@@ -28,16 +30,17 @@ export function LoginForm() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      <button type="submit" disabled={loginMutation.isPending} className="w-full rounded bg-gray-900 px-3 py-2 text-white disabled:opacity-50">
+      {loginMutation.error && (
+        <Banner tone="danger" title="อุ๊ย เข้าสู่ระบบไม่สำเร็จ">
+          {loginMutation.error.message}
+        </Banner>
+      )}
+      <Button type="submit" block loading={loginMutation.isPending}>
         เข้าสู่ระบบ
-      </button>
-      {loginMutation.error && <p className="text-sm text-red-700">{loginMutation.error.message}</p>}
-      <p className="text-sm">
-        ยังไม่มีบัญชี?{' '}
-        <Link to={next ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="underline">
-          สมัครสมาชิก
-        </Link>
-      </p>
+      </Button>
+      <Button variant="ghost" href={next ? `/register?next=${encodeURIComponent(next)}` : '/register'}>
+        ยังไม่มีบัญชี? สมัครสมาชิก
+      </Button>
     </form>
   )
 }

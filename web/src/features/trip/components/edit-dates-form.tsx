@@ -1,4 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { Sheet } from '@/components/ui/sheet'
 import { TextField } from '@/components/ui/text-field'
 import { useUpdateTripDates } from '../api/update-trip-dates'
 import type { Trip } from '../types'
@@ -16,22 +19,43 @@ export function EditDatesForm({ trip, onDone }: { trip: Trip; onDone: () => void
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded border border-gray-200 p-3">
-      <div className="grid grid-cols-2 gap-3">
-        <TextField label="เลือกได้ตั้งแต่" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        <TextField label="ถึง" type="date" required min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-      </div>
-      <TextField label="ไปกี่วัน" type="number" required min={1} value={duration} onChange={(e) => setDuration(e.target.value)} />
-      {trip.confirmed_start && <p className="text-xs text-gray-500">ถ้าวันที่ยืนยันไว้ไม่อยู่ในช่วงใหม่ จะถูกยกเลิก</p>}
-      <div className="flex gap-3">
-        <button type="submit" disabled={updateMutation.isPending} className="rounded bg-gray-900 px-3 py-2 text-sm text-white disabled:opacity-50">
-          บันทึกช่วงวัน
-        </button>
-        <button type="button" onClick={onDone} className="text-sm underline">
-          ยกเลิก
-        </button>
-      </div>
-      {updateMutation.error && <p className="text-sm text-red-700">{updateMutation.error.message}</p>}
-    </form>
+    <Sheet
+      open
+      title="แก้ไขช่วงวัน"
+      onClose={onDone}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onDone}>
+            ยกเลิก
+          </Button>
+          {/* ปุ่มอยู่ใน footer ของ Sheet นอก <form> จึงผูกด้วย form="…" */}
+          <Button type="submit" form="edit-trip-dates" loading={updateMutation.isPending}>
+            บันทึกช่วงวัน
+          </Button>
+        </>
+      }
+    >
+      <form id="edit-trip-dates" onSubmit={handleSubmit} className="wg-stack">
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="เลือกได้ตั้งแต่" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <TextField label="ถึง" type="date" required min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </div>
+        <TextField
+          label="ไปกี่วัน"
+          type="number"
+          required
+          min={1}
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          hint="ไปติดกันกี่วัน เช่น 3 = ศุกร์ถึงอาทิตย์"
+        />
+        {trip.confirmed_start && <p className="small wg-muted">ถ้าวันที่ยืนยันไว้ไม่อยู่ในช่วงใหม่ จะถูกยกเลิก</p>}
+        {updateMutation.error && (
+          <Banner tone="danger" title="อุ๊ย บันทึกไม่สำเร็จ">
+            {updateMutation.error.message}
+          </Banner>
+        )}
+      </form>
+    </Sheet>
   )
 }

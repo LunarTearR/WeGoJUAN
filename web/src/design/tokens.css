@@ -1,0 +1,79 @@
+/* WeGoJUAN — generated from tokens.json (docs/design/tokens.json): custom properties, type classes, @font-face. */
+:root, [data-theme="light"] {
+  --cream: #fff9f2;
+  --surface: #ffffff;
+  --peach-50: #fff3e6;
+  --peach-100: #ffe7cf;
+  --peach-200: #ffd3a8;
+  --orange: #ffa552;
+  --orange-deep: #e8842e;
+  --orange-ink: #a54a08;
+  --on-orange: #3b2414;
+  --ink: #3b2a1e;
+  --ink-muted: #6f5a49;
+  --line: #f3e1ce;
+  --line-strong: #b48660;
+  --free: #0b7461;
+  --free-soft: #ddf4ec;
+  --free-line: #8ed2bd;
+  --busy: #b83452;
+  --busy-soft: #fde7eb;
+  --busy-line: #efa3b3;
+  --on-status: #ffffff;
+  --honey-soft: #fff2c2;
+  --honey-ink: #7a5200;
+  --danger: var(--busy);
+  --focus: var(--orange-ink);
+  --scrim: #3b2a1e66;
+  --shadow-sm: 0 1px 2px #8a4b1414, 0 2px 8px #8a4b140f;
+  --shadow-md: 0 4px 12px #8a4b141a, 0 12px 32px -8px #8a4b1426;
+  --shadow-lip: 0 3px 0 #e8842e;
+  --shadow-lip-quiet: 0 3px 0 #f3e1ce;
+  --focus-ring: 0 0 0 2px #fff9f2, 0 0 0 4px #a54a08;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 9999px;
+  --duration-fast: 120ms;
+  --duration-pop: 220ms;
+  --duration-sheet: 280ms;
+  --ease-pop: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --bp-medium: 600px;
+  --bp-expanded: 1024px;
+  --rail-width: 88px;
+  --sidebar-width: 256px;
+  --aside-width: 360px;
+  --content-max: 640px;
+  --page-max: 1280px;
+  --font-display: "Mitr", "Anuphan", system-ui, sans-serif;
+  --font-sans: "Anuphan", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.display { font-family: var(--font-display); font-size: 28px; line-height: 40px; font-weight: 600; }
+.title { font-family: var(--font-display); font-size: 22px; line-height: 32px; font-weight: 500; }
+.heading { font-family: var(--font-display); font-size: 18px; line-height: 28px; font-weight: 500; }
+.day-number { font-family: var(--font-display); font-size: 15px; line-height: 20px; font-weight: 500; }
+.stat { font-family: var(--font-display); font-size: 32px; line-height: 36px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 16px; line-height: 26px; font-weight: 400; }
+.body-strong { font-family: var(--font-sans); font-size: 16px; line-height: 26px; font-weight: 600; }
+.small { font-family: var(--font-sans); font-size: 14px; line-height: 22px; font-weight: 400; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 18px; font-weight: 500; }
+.micro { font-family: var(--font-sans); font-size: 10px; line-height: 14px; font-weight: 600; }
+@font-face { font-family: "Mitr"; src: url("./fonts/Mitr-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Mitr"; src: url("./fonts/Mitr-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Mitr"; src: url("./fonts/Mitr-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Anuphan"; src: url("./fonts/Anuphan-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Anuphan"; src: url("./fonts/Anuphan-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Anuphan"; src: url("./fonts/Anuphan-600.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }

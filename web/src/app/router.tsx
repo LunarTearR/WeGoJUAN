@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
-import { AppShell } from '@/components/layout/app-shell'
 import { RequireUser } from '@/features/auth/components/require-user'
-import { UserMenu } from '@/features/auth/components/user-menu'
+import { AppLayout, type ShellHandle } from './routes/app-layout'
 import { CalendarRoute } from './routes/calendar'
 import { JoinRoute } from './routes/join'
 import { LoginRoute } from './routes/login'
@@ -13,8 +12,8 @@ import { TripsRoute } from './routes/trips'
 
 export const router = createBrowserRouter([
   {
-    // AppShell อยู่ใน components (shared) จึง import feature เองไม่ได้ — ส่ง UserMenu เข้าไปจากตรงนี้
-    element: <AppShell actions={<UserMenu />} />,
+    // AppShell อยู่ใน components (shared) จึง import feature เองไม่ได้ — AppLayout ประกอบให้ที่ฝั่ง app
+    element: <AppLayout />,
     children: [
       {
         element: <RequireUser />,
@@ -23,14 +22,14 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/trips" replace /> },
           { path: 'calendar', element: <CalendarRoute /> },
           { path: 'trips', element: <TripsRoute /> },
-          { path: 'trips/new', element: <TripNewRoute /> },
+          { path: 'trips/new', element: <TripNewRoute />, handle: { bottomNav: false } satisfies ShellHandle },
         ],
       },
       // Guest เปิดหน้าทริปได้โดยไม่ login — server ตอบ 404 ถ้าไม่ได้เป็นสมาชิก
-      { path: 'trips/:tripId', element: <TripDetailRoute /> },
-      { path: 'login', element: <LoginRoute /> },
-      { path: 'register', element: <RegisterRoute /> },
-      { path: 'join/:code', element: <JoinRoute /> },
+      { path: 'trips/:tripId', element: <TripDetailRoute />, handle: { bottomNav: false } satisfies ShellHandle },
+      { path: 'login', element: <LoginRoute />, handle: { bottomNav: false } satisfies ShellHandle },
+      { path: 'register', element: <RegisterRoute />, handle: { bottomNav: false } satisfies ShellHandle },
+      { path: 'join/:code', element: <JoinRoute />, handle: { bottomNav: false } satisfies ShellHandle },
       { path: '*', element: <NotFoundRoute /> },
     ],
   },

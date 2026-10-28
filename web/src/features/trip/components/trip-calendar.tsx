@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { CalendarLegend } from '@/components/calendar/calendar-legend'
+import { DayCell } from '@/components/calendar/day-cell'
 import { MonthGrid } from '@/components/calendar/month-grid'
 import { MonthNav } from '@/components/calendar/month-nav'
-import { eachDay, monthOf } from '@/lib/date'
-import { initials } from '@/lib/initials'
-import { statusClass, statusLabel } from '@/lib/mark'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { eachDay, formatThaiDay, monthOf, todayISO } from '@/lib/date'
 import type { ISODate } from '@/types/date'
 import type { Status } from '@/types/mark'
 import { useTripMarks } from '../api/get-trip-marks'
@@ -19,19 +21,33 @@ type TripCalendarProps = {
 
 const monthIndex = ({ year, month }: { year: number; month: number }) => year * 12 + month
 
-// ปฏิทินในทริป: พื้นช่อง = Mark ของฉัน, ป้าย 2 ตัวอักษร = เพื่อนที่ระบุแล้ว (เขียวว่าง/แดงไม่ว่าง, ไม่ระบุไม่แสดง)
-// กดวัน = เปิดแผงตั้งวันของฉัน และดูชื่อเต็มของเพื่อน
+// ปฏิทินในทริป: พื้นช่อง = Mark ของฉัน, ป้าย 2 ตัวอักษร = เพื่อนที่ระบุแล้ว (กลมว่าง/เหลี่ยมไม่ว่าง, ไม่ระบุไม่แสดง)
+// กดวัน = เปิดแผงตั้งวันของฉัน และดูชื่อเต็มของเพื่อน · ไม่มีเหตุผลส่วนตัวในทริปเด็ดขาด
 export function TripCalendar({ trip, members, me }: TripCalendarProps) {
-  const { data: marks, isPending, error } = useTripMarks(trip.id)
+  const { data: marks, isPending, error, refetch } = useTripMarks(trip.id)
   const saveMutation = useSaveMyTripMarks(trip.id, me.id)
   const [shown, setShown] = useState(() => monthOf(trip.confirmed_start ?? trip.start_date))
   const [selected, setSelected] = useState<ISODate | null>(null)
+  // อ่านวันนี้ครั้งเดียวตอน mount (เรียก new Date() ตรงๆ ตอน render ไม่ pure)
+  const [today] = useState(todayISO)
 
   if (isPending) {
-    return <p className="text-gray-500">กำลังโหลดวันว่างของสมาชิก…</p>
+    return <p className="small wg-muted">กำลังนับหัวเพื่อน…</p>
   }
   if (error) {
-    return <p className="text-red-700">โหลดวันว่างไม่สำเร็จ: {error.message}</p>
+    return (
+      <Banner
+        tone="danger"
+        title="โหลดไม่สำเร็จ"
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => refetch()}>
+            ลองอีกครั้ง
+          </Button>
+        }
+      >
+        {error.message}
+      </Banner>
+    )
   }
 
   const statusOf = new Map<string, Status>(marks.map((m) => [`${m.member_id}|${m.day}`, m.status]))
@@ -50,9 +66,13 @@ export function TripCalendar({ trip, members, me }: TripCalendarProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-gray-600">กดวันเพื่อตั้งวันของฉัน และดูว่าใครว่าง</p>
-      {saveMutation.error && <p className="text-sm text-red-700">บันทึกไม่สำเร็จ: {saveMutation.error.message}</p>}
+    <div className="wg-stack">
+      <p className="small wg-muted">แตะวันเพื่อตั้งวันของฉัน แล้วดูว่าใครว่างบ้าง</p>
+      {saveMutation.error && (
+        <Banner tone="danger" title="อุ๊ย บันทึกไม่สำเร็จ">
+          {saveMutation.error.message}
+        </Banner>
+      )}
       <MonthNav
         year={shown.year}
         month={shown.month}
@@ -62,49 +82,25 @@ export function TripCalendar({ trip, members, me }: TripCalendarProps) {
       <MonthGrid
         year={shown.year}
         month={shown.month}
-        renderDay={(day, n) => {
-          if (!inRange(day)) {
-            return <div className="min-h-18 rounded border border-gray-100 bg-gray-50 p-0.5 text-left text-xs text-gray-300">{n}</div>
-          }
-          const mine = get(me.id, day)
-          const isConfirmed = confirmed.has(day)
-          return (
-            <button
-              type="button"
-              aria-label={`${day} ${me.display_name}${isConfirmed ? ' (วันที่ยืนยัน)' : ''} ${statusLabel[mine ?? 'unknown']}`}
-              aria-pressed={selected === day}
+        renderDay={(day, n) =>
+          inRange(day) ? (
+            <DayCell
+              day={n}
+              variant="trip"
+              status={get(me.id, day)}
+              friends={friends.map((f) => ({ name: f.display_name, status: get(f.id, day) }))}
+              confirmed={confirmed.has(day)}
+              selected={selected === day}
+              today={today === day}
+              dateLabel={formatThaiDay(day)}
               onClick={() => setSelected(day)}
-              className={`flex min-h-18 w-full flex-col items-start rounded border p-0.5 text-left text-xs ${statusClass(mine)} ${
-                isConfirmed ? 'ring-2 ring-inset ring-blue-600' : ''
-              } ${selected === day ? 'outline-2 outline-gray-900' : ''}`}
-            >
-              <span className="font-semibold">{n}</span>
-              <span className="mt-0.5 flex flex-wrap gap-0.5">
-                {friends.map((f) => {
-                  const s = get(f.id, day)
-                  if (s === null) return null
-                  return (
-                    <span
-                      key={f.id}
-                      role="img"
-                      aria-label={`${day} ${f.display_name} ${statusLabel[s]}`}
-                      className={`min-w-5 rounded-full px-0.5 text-center text-[9px] leading-4 text-white ${s === 'free' ? 'bg-green-600' : 'bg-red-600'}`}
-                    >
-                      {initials(f.display_name)}
-                    </span>
-                  )
-                })}
-              </span>
-            </button>
+            />
+          ) : (
+            <DayCell day={n} variant="trip" outside />
           )
-        }}
+        }
       />
-      <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-        <span>พื้นช่อง = ของฉัน</span>
-        <span className="text-green-700">● เพื่อนว่าง</span>
-        <span className="text-red-700">● เพื่อนไม่ว่าง</span>
-        {confirmed.size > 0 && <span className="text-blue-700">▢ วันที่ยืนยัน</span>}
-      </div>
+      <CalendarLegend trip confirmed={confirmed.size > 0} />
       {selected && (
         <DayPanel
           day={selected}
@@ -112,6 +108,7 @@ export function TripCalendar({ trip, members, me }: TripCalendarProps) {
           friends={friends.map((member) => ({ member, status: get(member.id, selected) }))}
           isConfirmed={confirmed.has(selected)}
           onSet={(status) => saveMutation.mutate([{ day: selected, status }])}
+          onClose={() => setSelected(null)}
         />
       )}
     </div>
