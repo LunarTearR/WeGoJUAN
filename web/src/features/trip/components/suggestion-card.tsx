@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { Face } from '@/components/ui/face'
 import { Pill } from '@/components/ui/pill'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { cx } from '@/lib/cx'
 import { statusLabel } from '@/lib/mark'
 
@@ -17,7 +17,7 @@ type SuggestionCardProps = {
   isConfirmed: boolean
 }
 
-// หนึ่งช่วงที่แนะนำ: อันดับ วันที่ หน้าของสมาชิกทุกคน และปุ่มเลือกของผู้จัด
+// หนึ่งช่วงที่แนะนำ: อันดับ วันที่ ไอคอนสถานะของสมาชิกทุกคน และปุ่มเลือกของผู้จัด
 // อันดับ 1 ขอบส้ม + ปุ่ม primary ที่เหลือเงียบกว่าด้วยปุ่ม secondary
 export function SuggestionCard(props: SuggestionCardProps) {
   const { rank, rangeLabel, durationDays, available, busy, unknown } = props
@@ -55,7 +55,7 @@ export function SuggestionCard(props: SuggestionCardProps) {
           const label = `${f.name} ${statusLabel[f.status]}`
           return (
             <span key={`${f.status}${f.name}`} role="listitem" title={label}>
-              <Face mood={f.status} size={28} title={label} />
+              <StatusIcon kind={f.status} size={28} title={label} />
             </span>
           )
         })}

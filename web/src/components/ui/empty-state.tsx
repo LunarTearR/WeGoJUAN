@@ -1,21 +1,21 @@
 import type { ReactNode } from 'react'
 import { cx } from '@/lib/cx'
-import { Face, type Mood } from './face'
+import { StatusIcon, type StatusKind } from './status-icon'
 
 type EmptyStateProps = {
   title: string // บอกตรง ๆ ว่าไม่มีอะไร
   children?: ReactNode // บรรทัดที่ใส่ความเป็นกันเอง (ดู docs/design/copy.md)
   action?: ReactNode // ปุ่มเดียว
-  mood?: Mood // ตั้งต้น sleepy · ยังหาไม่เจอใช้ unknown
+  icon?: StatusKind // ตั้งต้น calendar · ยังหาวันไม่เจอใช้ finding · หาไม่เจอ/ใช้ไม่ได้ใช้ busy
   size?: number
   className?: string
 }
 
-// หน้าหรือรายการที่ยังว่างอยู่: หน้าใหญ่ หัวข้อสั้น หนึ่งบรรทัด หนึ่งปุ่ม
-export function EmptyState({ title, children, action, mood = 'sleepy', size = 72, className }: EmptyStateProps) {
+// หน้าหรือรายการที่ยังว่างอยู่: ไอคอนใหญ่ หัวข้อสั้น หนึ่งบรรทัด หนึ่งปุ่ม
+export function EmptyState({ title, children, action, icon = 'calendar', size = 72, className }: EmptyStateProps) {
   return (
     <div className={cx('wg-empty', className)}>
-      <Face mood={mood} size={size} />
+      <StatusIcon kind={icon} size={size} />
       <h2 className="wg-empty__title heading">{title}</h2>
       {children && <p className="wg-empty__text small">{children}</p>}
       {action && <div className="wg-empty__action">{action}</div>}

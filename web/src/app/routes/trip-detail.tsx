@@ -57,7 +57,7 @@ function TripDetail() {
   }
   if (error instanceof ApiError && error.status === 404) {
     return plain(
-      <EmptyState mood="unknown" title="หาทริปนี้ไม่เจอ" action={<Button href="/trips">กลับไปที่ทริปของฉัน</Button>}>
+      <EmptyState icon="busy" title="หาทริปนี้ไม่เจอ" action={<Button href="/trips">กลับไปที่ทริปของฉัน</Button>}>
         อาจถูกลบไปแล้ว หรือคุณยังไม่ได้เป็นสมาชิก
       </EmptyState>,
     )

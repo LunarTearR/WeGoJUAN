@@ -1,24 +1,24 @@
 import type { ReactNode } from 'react'
 import { cx } from '@/lib/cx'
-import { Face, type Mood } from './face'
 import { Icon, type IconName } from './icon'
+import { StatusIcon, type StatusKind } from './status-icon'
 
 type PillProps = {
   // solid = ยืนยันแล้ว/ผู้จัด/ลงตัวที่สุด · orange = เห็นแค่คุณ · neutral = กำลังหาวัน/แขก
-  // free/busy = สถานะของเพื่อน (คู่กับ face) · honey = รออัปเดต
-  tone?: 'solid' | 'orange' | 'neutral' | 'free' | 'busy' | 'honey'
+  // outline = ป้ายขาว (ตั้งต้นเมื่อมี status เช่นสถานะของเพื่อน) · free/busy = ป้ายสีของสถานะ · honey = รออัปเดต
+  tone?: 'solid' | 'orange' | 'neutral' | 'outline' | 'free' | 'busy' | 'honey'
   icon?: IconName
-  face?: Mood
+  status?: StatusKind // ไอคอนสถานะ 18px ด้านหน้า เช่นสถานะของเพื่อน
   children?: ReactNode
   className?: string
 }
 
 // ป้ายเล็กสำหรับสถานะและบทบาท — อ่านอย่างเดียว อย่าทำให้ดูเหมือนปุ่ม
-export function Pill({ tone = 'orange', icon, face, children, className }: PillProps) {
+export function Pill({ tone, icon, status, children, className }: PillProps) {
   return (
-    <span className={cx('wg-pill', `wg-pill--${tone}`, 'caption', className)}>
+    <span className={cx('wg-pill', `wg-pill--${tone ?? (status ? 'outline' : 'orange')}`, status && 'wg-pill--status', 'caption', className)}>
       {icon && <Icon name={icon} size={14} />}
-      {face && <Face mood={face} size={16} />}
+      {status && <StatusIcon kind={status} size={18} />}
       {children}
     </span>
   )

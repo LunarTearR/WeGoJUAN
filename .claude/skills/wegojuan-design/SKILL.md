@@ -1,6 +1,6 @@
 ---
 name: wegojuan-design
-description: Use for any UI work in web/ (screens, components, styling, Thai copy, responsive layout). Applies the WeGoJUAN design system — light orange + white, Faces for emotion, phone/tablet/PC/Surface Duo layouts.
+description: Use for any UI work in web/ (screens, components, styling, Thai copy, responsive layout). Applies the WeGoJUAN design system — light orange + white, lucide-react status icons, phone/tablet/PC/Surface Duo layouts.
 ---
 
 # WeGoJUAN design system
@@ -9,7 +9,7 @@ The design system for this app lives in the repo. Follow it for every change in 
 
 ## Read before you build
 
-1. `docs/design/README.md`: the brand book (personality, colour meanings, type, layout across devices, motion, Faces, accessibility). Read it once per session.
+1. `docs/design/README.md`: the brand book (personality, colour meanings, type, layout across devices, motion, status icons, accessibility). Read it once per session.
 2. `docs/design/copy.md`: the Thai lines for every state. Use them as written; don't invent new wording when a line exists.
 3. `docs/design/reference/components/<Component>.md`: the guidelines for the component you are touching.
 4. `docs/design/screens/<Name>.png`: the visual target. Look at the matching screenshot before and after you build (Screen*.png are whole screens per device; the rest are single components).
@@ -37,6 +37,8 @@ The layers matter: Tailwind utilities override component classes, so a one-off `
 `web/index.html` needs `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` for iPhone safe areas.
 
 ## How to build components
+
+- Status icons use `lucide-react` (install it in `web/`: `npm i lucide-react`). Build one `StatusIcon` component that maps kind → icon + circle class: `finding` → `CalendarClock`, `confirmed` → `Ticket`, `calendar` → `Calendar`, `free` → `Check`, `busy` → `X`, `unknown` → `MoreHorizontal`, rendered inside `<span className="wg-status wg-status--{kind}">` (see `reference/components/StatusIcon.md` for sizes and stroke widths). Never use emoji or loose icons for status.
 
 - Port each component from `reference/bundle.js` into TypeScript React under `web/src/components/` (shared) or `web/src/features/<area>/components/` (feature-specific), following the repo's existing structure, `@/` imports and Thai code comments.
 - Keep the same `wg-` class names and DOM structure so `components.css` styles them. Use props from `reference/index.d.ts`.
@@ -67,9 +69,9 @@ The layers matter: Tailwind utilities override component classes, so a one-off `
 ## Rules that never bend
 
 - **Colour by meaning:** orange = the trip and its decisions (primary button, Confirmed); teal `free` / rose `busy` = people's availability; honey = heads-up; `danger` = destructive. Text on orange is `on-orange`, never white.
-- **Status is never colour alone:** keep the hatch on busy days, the dashed edge on unknown, the round/square initials, and a Face or word in pickers and pills.
+- **Status is never colour alone:** keep the hatch on busy days, the dashed edge on unknown, the round/square initials, and a status icon or word in pickers and pills.
 - **Thai domain terms are fixed:** ทริป, ว่าง, ไม่ว่าง, ยังไม่ระบุ, ผู้จัด, แขก, ลิงก์เชิญ, ปฏิทินของฉัน, อัปเดตจากปฏิทินของฉัน, กำลังหาวัน, ยืนยันแล้ว, วันที่ยืนยัน, เหตุผล. Personality goes in second lines; no jokes in errors or destructive confirmations.
-- **Faces, not emoji.** One Face per card, banner or sheet header.
+- **Status icons, not emoji.** One `StatusIcon` per card, banner or sheet header. Trip status: beige CalendarClock (กำลังหาวัน), orange Ticket (ยืนยันแล้ว). Availability: green Check, light-grey X, dashed white ellipsis.
 - **One primary button per screen.** Touch targets 44px or more.
 - **Reason is private:** it appears only on the user's own calendar, never in a trip.
 - **Nothing crosses the hinge** in split (Surface Duo) layout.

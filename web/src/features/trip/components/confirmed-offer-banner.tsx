@@ -16,7 +16,7 @@ export function ConfirmedOfferBanner({ trip, onAccepted }: { trip: Trip; onAccep
   return (
     <Banner
       tone="info"
-      mood={changed ? 'unknown' : undefined}
+      icon={changed ? 'finding' : undefined}
       title="กันวันไว้ในปฏิทินของฉันไหม?"
       actions={
         <>
