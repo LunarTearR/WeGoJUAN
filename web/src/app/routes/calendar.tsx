@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { PageLayout } from '@/components/layout/page-layout'
+import { PageTitle } from '@/components/layout/page-title'
 import { HomeAppBar } from '@/app/home-app-bar'
+import { BusySummary } from '@/features/availability/components/busy-summary'
 import { MonthCalendar } from '@/features/availability/components/month-calendar'
 import { ResyncBanner } from '@/features/trip/components/resync-banner'
+import type { ISODate } from '@/types/date'
 
 export function CalendarRoute() {
   // อ่านวันที่ปัจจุบันครั้งเดียวตอน mount (เรียก new Date() ตรงๆ ตอน render ไม่ pure)
@@ -10,6 +13,7 @@ export function CalendarRoute() {
     const today = new Date()
     return { year: today.getFullYear(), month: today.getMonth() + 1 }
   })
+  const [selected, setSelected] = useState<ISODate | null>(null)
 
   // วันที่แก้ไปแล้วในรอบนี้ — ใช้ถามว่าทริปไหนควร re-sync
   const [changedDays, setChangedDays] = useState<string[]>([])
@@ -25,14 +29,23 @@ export function CalendarRoute() {
     })
   }
 
+  // main = เดือน · aside = สรุปไม่ว่างส่วนตัว (ข้างเดือนบน PC, ใต้เดือนบนมือถือ, ถูกลิ้นชักวันแทนที่ตอนเปิดวัน)
   return (
-    <PageLayout header={<HomeAppBar />}>
-      <section className="space-y-4">
-        <h1 className="text-xl font-semibold">ปฏิทินของฉัน</h1>
-        <p className="text-sm text-gray-600">กดวันเพื่อตั้งว่าง/ไม่ว่าง ใส่เหตุผลส่วนตัว หรือเลือก "ถึงวันที่" เพื่อตั้งหลายวันพร้อมกัน</p>
-        <ResyncBanner days={changedDays} onDismiss={() => setChangedDays([])} />
-        <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} onSaved={addChangedDays} />
-      </section>
+    <PageLayout
+      header={<HomeAppBar />}
+      aside={<BusySummary year={shown.year} month={shown.month} onSelect={setSelected} />}
+      asideLabel="ไม่ว่างเดือนนี้"
+    >
+      <PageTitle title="ปฏิทินของฉัน">ตั้งครั้งเดียว ใช้ได้กับทุกทริป</PageTitle>
+      <ResyncBanner days={changedDays} onDismiss={() => setChangedDays([])} />
+      <MonthCalendar
+        year={shown.year}
+        month={shown.month}
+        selected={selected}
+        onSelect={setSelected}
+        onChangeMonth={changeMonth}
+        onSaved={addChangedDays}
+      />
     </PageLayout>
   )
 }
