@@ -41,12 +41,25 @@ export function formatThaiDay(day: ISODate, withYear = false): string {
   }).format(new Date(Date.UTC(y, m - 1, d)))
 }
 
-// ช่วงวันในเดือนเดียวกัน: "15–19 ธ.ค." หรือ "21 ธ.ค." ถ้าวันเดียว
+function formatPart(day: ISODate, part: 'month' | 'weekday'): string {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Intl.DateTimeFormat('th-TH', { [part]: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)))
+}
+
+// ช่วงวัน: "15–19 ธ.ค." · วันเดียว "21 ธ.ค." · ข้ามเดือน "30 ม.ค. – 2 ก.พ."
 export function formatDayRange(from: ISODate, to: ISODate): string {
-  const [y, m, d1] = from.split('-').map(Number)
+  const d1 = Number(from.split('-')[2])
   const d2 = Number(to.split('-')[2])
-  const month = new Intl.DateTimeFormat('th-TH', { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d1)))
-  return d1 === d2 ? `${d1} ${month}` : `${d1}–${d2} ${month}`
+  if (from === to) return `${d1} ${formatPart(from, 'month')}`
+  if (from.slice(0, 7) === to.slice(0, 7)) return `${d1}–${d2} ${formatPart(from, 'month')}`
+  return `${d1} ${formatPart(from, 'month')} – ${d2} ${formatPart(to, 'month')}`
+}
+
+// ช่วงวันพร้อมวันในสัปดาห์ (วันที่ยืนยัน, ช่วงที่แนะนำ): "ศ. 5 – อา. 7 ธ.ค." · ข้ามเดือน "ศ. 30 ม.ค. – จ. 2 ก.พ."
+export function formatWeekdayRange(from: ISODate, to: ISODate): string {
+  if (from === to) return formatThaiDay(from)
+  if (from.slice(0, 7) === to.slice(0, 7)) return `${formatPart(from, 'weekday')} ${Number(from.split('-')[2])} – ${formatThaiDay(to)}`
+  return `${formatThaiDay(from)} – ${formatThaiDay(to)}`
 }
 
 // ISODate ถัดไป n วัน (UTC ล้วน)
