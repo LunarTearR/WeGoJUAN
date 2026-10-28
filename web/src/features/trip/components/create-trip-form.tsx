@@ -7,6 +7,7 @@ import { Face } from '@/components/ui/face'
 import { TextField } from '@/components/ui/text-field'
 import { todayISO } from '@/lib/date'
 import { useCreateTrip } from '../api/create-trip'
+import { dateRangeErrors } from '../utils/date-range-errors'
 
 export function CreateTripForm() {
   const [today] = useState(todayISO)
@@ -16,6 +17,7 @@ export function CreateTripForm() {
   const [duration, setDuration] = useState('1')
   const navigate = useNavigate()
   const createMutation = useCreateTrip()
+  const dateErrors = dateRangeErrors(startDate, endDate, today)
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -40,8 +42,24 @@ export function CreateTripForm() {
         onChange={(e) => setTitle(e.target.value)}
       />
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="เลือกได้ตั้งแต่" type="date" required min={today} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        <TextField label="ถึง" type="date" required min={startDate || today} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        <TextField
+          label="เลือกได้ตั้งแต่"
+          type="date"
+          required
+          min={today}
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          error={dateErrors.start}
+        />
+        <TextField
+          label="ถึง"
+          type="date"
+          required
+          min={startDate || today}
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          error={dateErrors.end}
+        />
       </div>
       <TextField
         label="ไปกี่วัน"
@@ -58,7 +76,7 @@ export function CreateTripForm() {
         </Banner>
       )}
       <FormFooter>
-        <Button type="submit" block icon="plus" loading={createMutation.isPending}>
+        <Button type="submit" block icon="plus" loading={createMutation.isPending} disabled={Boolean(dateErrors.start || dateErrors.end)}>
           สร้างทริป
         </Button>
       </FormFooter>

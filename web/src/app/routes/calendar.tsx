@@ -5,14 +5,12 @@ import { HomeAppBar } from '@/app/home-app-bar'
 import { BusySummary } from '@/features/availability/components/busy-summary'
 import { MonthCalendar } from '@/features/availability/components/month-calendar'
 import { ResyncBanner } from '@/features/trip/components/resync-banner'
+import { monthOf, todayISO } from '@/lib/date'
 import type { ISODate } from '@/types/date'
 
 export function CalendarRoute() {
-  // อ่านวันที่ปัจจุบันครั้งเดียวตอน mount (เรียก new Date() ตรงๆ ตอน render ไม่ pure)
-  const [shown, setShown] = useState(() => {
-    const today = new Date()
-    return { year: today.getFullYear(), month: today.getMonth() + 1 }
-  })
+  // เปิดที่เดือนของ Today (วันที่ในไทย) — อ่านครั้งเดียวตอน mount (เรียก new Date() ตรงๆ ตอน render ไม่ pure)
+  const [shown, setShown] = useState(() => monthOf(todayISO()))
   const [selected, setSelected] = useState<ISODate | null>(null)
 
   // วันที่แก้ไปแล้วในรอบนี้ — ใช้ถามว่าทริปไหนควร re-sync
