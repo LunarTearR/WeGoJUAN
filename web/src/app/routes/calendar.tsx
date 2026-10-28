@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { PageLayout } from '@/components/layout/page-layout'
+import { HomeAppBar } from '@/app/home-app-bar'
 import { MonthCalendar } from '@/features/availability/components/month-calendar'
 import { ResyncBanner } from '@/features/trip/components/resync-banner'
 
@@ -24,11 +26,13 @@ export function CalendarRoute() {
   }
 
   return (
-    <section className="space-y-4">
-      <h1 className="text-xl font-semibold">ปฏิทินของฉัน</h1>
-      <p className="text-sm text-gray-600">กดวันเพื่อตั้งว่าง/ไม่ว่าง ใส่เหตุผลส่วนตัว หรือเลือก "ถึงวันที่" เพื่อตั้งหลายวันพร้อมกัน</p>
-      <ResyncBanner days={changedDays} onDismiss={() => setChangedDays([])} />
-      <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} onSaved={addChangedDays} />
-    </section>
+    <PageLayout header={<HomeAppBar />}>
+      <section className="space-y-4">
+        <h1 className="text-xl font-semibold">ปฏิทินของฉัน</h1>
+        <p className="text-sm text-gray-600">กดวันเพื่อตั้งว่าง/ไม่ว่าง ใส่เหตุผลส่วนตัว หรือเลือก "ถึงวันที่" เพื่อตั้งหลายวันพร้อมกัน</p>
+        <ResyncBanner days={changedDays} onDismiss={() => setChangedDays([])} />
+        <MonthCalendar year={shown.year} month={shown.month} onChangeMonth={changeMonth} onSaved={addChangedDays} />
+      </section>
+    </PageLayout>
   )
 }

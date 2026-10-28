@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { PageLayout } from '@/components/layout/page-layout'
+import { HomeAppBar } from '@/app/home-app-bar'
 import { ApiError } from '@/lib/api-client'
 import { eachDay } from '@/lib/date'
 import { useTrip } from '@/features/trip/api/get-trip'
@@ -19,7 +21,11 @@ import { TripCalendar } from '@/features/trip/components/trip-calendar'
 // ไม่งั้นแผง Push / ฟอร์มแก้วัน / แบนเนอร์ของทริปเดิมตามไปด้วย
 export function TripDetailRoute() {
   const { tripId = '' } = useParams()
-  return <TripDetail key={tripId} />
+  return (
+    <PageLayout header={<HomeAppBar />}>
+      <TripDetail key={tripId} />
+    </PageLayout>
+  )
 }
 
 // หน้านี้คือจุดที่ประกอบหลายส่วนของทริปเข้าด้วยกัน (เหมือน wiring ใน main.go)
