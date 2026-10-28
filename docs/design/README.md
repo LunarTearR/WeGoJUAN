@@ -1,13 +1,13 @@
 # WeGoJUAN design system
 
-WeGoJUAN helps a group of friends find the days everyone is free, then lock in the trip. The name is a pun: *we go* + *ชวน* (to invite). The interface should feel like the friend in the group chat who actually gets the trip organised: warm, a little cheeky, never loud. Light orange on warm white, round shapes, and small faces that react to what you do.
+WeGoJUAN helps a group of friends find the days everyone is free, then lock in the trip. The name is a pun: *we go* + *ชวน* (to invite). The interface should feel like the friend in the group chat who actually gets the trip organised: warm, a little cheeky, never loud. Light orange on warm white, round shapes, and quiet round status icons (lucide-react) that answer the two questions people actually have: has the trip got dates yet, and who's free?
 
 **Mobile first, then every screen.** Design each screen at 360–440px wide first: the phone is where the invite link opens and where people mark their days. The same components then stretch to tablets, PCs and dual-screen phones through one `AppShell` and four layout classes (see **Layout across devices**).
 
 ## Personality: fun, but not too hot
 
 - **Warm, not spicy.** Orange is a light apricot (`orange`), not a red-orange. The page is `cream`, cards are `surface` (white). Large orange areas are rare: one primary button per screen, the Confirmed card, the floating create button.
-- **The fun is in the reactions.** Use a `Face` when something happens (a day is marked, dates are confirmed, a list is empty). Don't use loud gradients, confetti, or more than one exclamation mark on a screen.
+- **The fun is in the reactions, kept calm.** Status icons pop when something changes (a day is marked) and the ticket stamps in when dates are confirmed; the personality lives in the Thai copy. Don't use loud gradients, confetti, or more than one exclamation mark on a screen.
 - **Tactile, not flashy.** Primary buttons have a 3px "candy lip" (`shadow-lip`) and sink 2px when pressed. Things that change state pop with a small overshoot (`ease-pop`, `duration-pop`). That's the whole motion vocabulary.
 
 ## Voice & copy
@@ -18,7 +18,7 @@ The UI is in Thai. Write like a friend in the group chat: short sentences, frien
 - **Labels stay plain, the fun goes in the second line.** Buttons and headings are plain verbs and nouns ("สร้างทริป", "เลือกช่วงนี้"). The personality goes in hints, empty states and success messages ("แก๊งเงียบไปนานแล้วนะ ชวนกันไปไหนสักที่ไหม?").
 - **Celebrate decisions.** An exclamation mark is for real wins only: "ยืนยันแล้ว!", "คัดลอกแล้ว!", "ว่างครบทุกคน! ไปกันเลย".
 - **No jokes when something is lost or private.** Errors explain plainly after a soft opener ("อุ๊ย บันทึกไม่สำเร็จ" then the reason). Deleting, leaving or removing someone uses plain, serious copy that says what is lost: "ลบทริป "ทะเลกันมั้ย แก๊ง"? สมาชิกและวันว่างในทริปจะหายไปทั้งหมด". Privacy notes (Reason) are straight: "เห็นแค่คุณ".
-- **Faces, not emoji.** Emotion comes from the `Face` component. Don't put emoji in UI strings; they render differently on every phone.
+- **Icons, not emoji.** Status is shown with `StatusIcon` (lucide-react icons in a round badge). Don't put emoji in UI strings; they render differently on every phone.
 - **Numbers and dates.** Use Arabic numerals and short Thai months with a weekday when space allows: "ศ. 5 – อา. 7 ธ.ค.". Ranges use an en dash. Years follow `th-TH` (พ.ศ.), as the app already does.
 - The **Microcopy** section has the ready-made lines for every state.
 
@@ -30,7 +30,8 @@ Two jobs, two colour families. **Orange means the trip and its decisions.** **Te
 |---|---|---|---|
 | Brand, primary action, the Confirmed trip | `orange` (text `on-orange`), `peach-100` | `orange-ink` | white text on `orange` |
 | Free (ว่าง) / Available | `free-soft`, border `free-line` | `free` | as a "success = done" colour for trip decisions |
-| Busy (ไม่ว่าง) | `busy-soft` + hatch, border `busy-line` | `busy` | without the hatch or the face |
+| Busy (ไม่ว่าง) in calendars | `busy-soft` + hatch, border `busy-line` | `busy` | without the hatch |
+| Status icons (see **Status icons**) | `sand`, `orange`, `free-soft`, `mist`, dashed `surface` | `ink-muted`, `on-orange`, `free`, `mist-ink` | as decoration with no meaning |
 | Unknown (ยังไม่ระบุ) | `surface` + dashed `line-strong` | `ink` / `ink-muted` | grey fill that looks "disabled" |
 | Heads-up (re-sync, re-push) | `honey-soft` | `honey-ink` | for errors |
 | Error, destructive | `busy-soft` | `danger` | for warnings |
@@ -38,7 +39,7 @@ Two jobs, two colour families. **Orange means the trip and its decisions.** **Te
 - Page `cream`; cards, sheets and inputs `surface`; sunken or read-only areas `peach-50`.
 - Body text `ink`; secondary text `ink-muted`. Both pass 4.5:1 on every surface and every `-soft` tint.
 - Hairlines and card borders `line`. A control's edge that must be seen (inputs, checkboxes, the secondary button, the dashed Unknown day) is `line-strong` (3:1).
-- Free and busy are a teal and a rose of the same lightness. They differ by hue toward blue and red, **and** every use also carries a second cue: the face, the hatch (busy days), the badge shape (round free / square-ish busy initials) or the word. Keep that second cue.
+- Free and busy are a teal and a rose of the same lightness. They differ by hue toward blue and red, **and** every use also carries a second cue: the Check / X / ellipsis icon, the hatch (busy days), the badge shape (round free / square-ish busy initials) or the word. Keep that second cue. Outside the calendar grid, availability is minimalist: a busy person is a light grey `mist` circle with an X, not rose.
 
 ## Type
 
@@ -75,7 +76,7 @@ Layout follows the width the app actually has, not the device name. `AppShell` m
 
 ### PC
 
-- The sidebar holds สร้างทริป as a block primary button and the three most recent trips (with their Faces) for one-click switching.
+- The sidebar holds สร้างทริป as a block primary button and the three most recent trips (with their status icons) for one-click switching.
 - A trip page puts status, banners and the calendar in the main column and suggested windows, members and the invite link in the aside. Use `useLayout()` to move the suggestions: inline before the calendar on compact and medium, in the aside on expanded and split.
 - The calendar grows with its own width: from 680px wide it shows full weekday names, taller trip days with up to 8 friend badges, and the private Reason as text inside each busy day on my own calendar.
 - Clicking a day opens the drawer on the right without dimming the page; clicking another day updates it. Esc closes it.
@@ -96,36 +97,48 @@ Layout follows the width the app actually has, not the device name. `AppShell` m
 
 ## Shape & elevation
 
-- Everything is round: `radius-md` for buttons, inputs, day cells and banners; `radius-lg` for cards; `radius-xl` for the sheet top and bottom nav; `radius-full` for pills, chips, avatars and faces.
+- Everything is round: `radius-md` for buttons, inputs, day cells and banners; `radius-lg` for cards; `radius-xl` for the sheet top and bottom nav; `radius-full` for pills, chips, avatars and status icons.
 - Cards rest on `cream` with a `line` border and `shadow-sm`. Floating things (bottom nav, sheet, create button) use `shadow-md`.
 - The candy lip: `shadow-lip` under primary buttons, `shadow-lip-quiet` under secondary buttons and status picker options. Nothing else gets a lip.
 
 ## Motion
 
 - `duration-fast` + `ease-out` for press feedback (scale 0.94–0.98 or a 2px sink).
-- `duration-pop` + `ease-pop` when a state changes: a day cell's fill, the chosen status face, a copied-link button, a ticked checkbox.
+- `duration-pop` + `ease-pop` when a state changes: a day cell's fill, the chosen status icon, a copied-link button, a ticked checkbox.
 - `duration-sheet` + `ease-out` for sheets sliding up, the PC day drawer sliding in, dialogs and banners appearing.
-- The party face hops once when dates are confirmed. Nothing loops except loading dots.
+- The ticket stamps in once (a small tilt and settle) when dates are confirmed. Nothing loops except loading dots.
 - Under `prefers-reduced-motion`, all motion is off (bundle.css handles it).
 
-## Emotion: the Faces
+## Status icons
 
-Five round faces are the brand's emoji. They are drawn from tokens, so they always match the palette.
+Two small sets of lucide-react icons, each inside a round badge (`StatusIcon`).
 
-| Mood | Means | Where |
-|---|---|---|
-| `free` (smile) | ว่าง / Available | status picker, suggestion faces, friend pills |
-| `busy` (><, sweat drop) | ไม่ว่าง | same places, error banners |
-| `unknown` (raised brow, dashed) | ยังไม่ระบุ, "hmm, when?" | Finding-dates trips, re-sync banners, no-match empty state |
-| `party` (^^, open smile) | Confirmed, a win | Confirmed card and trip cards, the invite landing, confirm-offer banner |
-| `sleepy` (zz) | Nothing here yet | Empty trip list, empty states |
+**Trip status: calendar and time.**
 
-Use one face per card or banner, at 28–44px in lists, 56–88px in heroes and empty states. Never use a face as decoration with no meaning, and never draw new moods ad hoc: add them here first.
+| Kind | Icon (lucide-react) | Circle | Icon colour | Means | Where |
+|---|---|---|---|---|---|
+| `finding` | `CalendarClock` | `sand` (soft beige) | `ink-muted` | กำลังหาวัน | trip cards, the trip's status card, re-push / re-sync banners, "no match yet", the invite landing of an open trip |
+| `confirmed` | `Ticket` | `orange` | `on-orange` | ยืนยันแล้ว | confirmed trip cards and status card (it stamps in), the confirm-offer banner, the side nav mark, the favicon |
+| `calendar` | `Calendar` | `sand` | `ink-muted` | nothing here yet | empty states, the create-trip intro |
+
+**Member availability: minimalist.**
+
+| Kind | Icon (lucide-react) | Circle | Icon colour | Means | Where |
+|---|---|---|---|---|---|
+| `free` | `Check` | `free-soft` | `free` | ว่าง / Available | StatusPicker, a member in a suggested window, friend pills, success banners |
+| `busy` | `X` | `mist` (light grey) | `mist-ink` | ไม่ว่าง | the same places; error banners |
+| `unknown` | `MoreHorizontal` (…) | `surface` with a dashed `line-strong` edge | `ink-muted` | ยังไม่ระบุ | the same places |
+
+- One icon per card, banner or sheet header. Sizes: 18 in pills, 24 in nav lists, 28 for people in a suggested window and in the picker, 32 in banners and sheet headers, 40–56 on cards, 72–88 in empty states and heroes.
+- The stroke stays optically about 2px at every size: 3 at 18–20px badges, 2.5 up to 32, 2.25 up to 48, 2 above (`strokeWidth` in lucide-react).
+- On a tinted banner the soft circles turn white so they don't disappear into the tint; the orange ticket stays orange.
+- In the app: `npm i lucide-react`, then `import { Calendar, CalendarClock, Ticket, Check, X, MoreHorizontal } from 'lucide-react'` inside one `StatusIcon` component that maps kind → icon and circle class. Don't scatter raw lucide icons for status.
 
 ## Iconography
 
 - Line icons on a 24px grid, 2px stroke, round caps and joins, `currentColor`. Use `Icon` (names: trip, calendar, plus, users, copy, share, refresh, flag, sparkle, lock, edit, trash, exit, check, close, more, chevron-left, chevron-right).
 - `flag` marks Confirmed, `sparkle` marks the best window, `lock` marks private things (Reason).
+- Status icons come from **lucide-react** (Calendar, CalendarClock, Ticket, Check, X, MoreHorizontal), always inside a `StatusIcon` circle. For any new UI icon, take it from lucide-react too, so the set stays one family; the `Icon` set here follows the same 24px grid and 2px stroke.
 - The app icon is the **brand calendar** (`web/public/favicon.svg`): an `orange` calendar outlined and ringed in `on-orange`, whose `cream` page wears the party Face's smile and blush. It is drawn on a 32px grid so it stays readable at 16px in a browser tab. `favicon-32.png` (transparent) and `apple-touch-icon.png` (180px on `cream`, for "Add to Home Screen") are renders of it: re-render both when the SVG changes. Inside the app, the line `calendar` icon still means ปฏิทินของฉัน.
 - There is still no full logo: set the name as the `Wordmark` ("WeGo" in `ink`, "JUAN" in `orange-ink`, Mitr 600).
 
@@ -133,7 +146,7 @@ Use one face per card or banner, at 28–44px in lists, 56–88px in heroes and 
 
 - Focus is always visible: `focus-ring` (a 2px `cream` gap, then 2px `orange-ink`), applied as a box-shadow so it follows the radius.
 - Each calendar cell's `aria-label` reads the date, my status and "วันที่ยืนยัน" or "มีเหตุผล" when they apply. Each friend's initials badge reads the full name and status.
-- Status is never colour alone: face + word in pickers and pills, hatch + face in cells, shape in initials.
+- Status is never colour alone: icon + word in pickers and pills, hatch in cells, shape in initials. A `StatusIcon` standing alone (a member in a suggested window) carries an aria-label with the name and status.
 - Danger banners use `role="alert"`; everything else uses `role="status"`.
 
 ## Using it in the WeGoJUAN web app
@@ -151,6 +164,7 @@ Set the viewport in `web/index.html` to `width=device-width, initial-scale=1, vi
   --color-free: var(--free);         --color-free-soft: var(--free-soft); --color-free-line: var(--free-line);
   --color-busy: var(--busy);         --color-busy-soft: var(--busy-soft); --color-busy-line: var(--busy-line);
   --color-honey-soft: var(--honey-soft); --color-honey-ink: var(--honey-ink); --color-danger: var(--danger);
+  --color-sand: var(--sand);         --color-mist: var(--mist); --color-mist-ink: var(--mist-ink); --color-mist-line: var(--mist-line);
   /* new names, so nothing points at itself */
   --font-brand: var(--font-display); --font-body: var(--font-sans);
   --radius-control: var(--radius-md); --radius-card: var(--radius-lg); --radius-sheet: var(--radius-xl);
@@ -163,4 +177,5 @@ That gives `bg-cream`, `text-orange-ink`, `bg-free-soft`, `font-brand`, `rounded
 - `bg-gray-900 text-white` buttons become primary `Button`s; `border-gray-300` buttons become secondary.
 - `ConfirmedDates`, `RepushBanner`, `ResyncBanner` and `ConfirmedOfferBanner` map one-to-one to `ConfirmedDates` and `Banner` (tones `honey`, `honey`, `info`).
 - For your own layout inside a page, use Tailwind's container-query variants (`@min-[600px]:`, `@min-[1024px]:`; the shell is already a container) rather than viewport `md:` / `lg:` breakpoints, so everything follows the app's width.
+- Add `lucide-react` to `web/package.json` for the status icons (`StatusIcon` in `bundle.js` embeds the same lucide geometry, so previews match).
 - `components/bundle.js` is plain, readable React. Copy a component's markup and classes, or load `bundle.css` as is.

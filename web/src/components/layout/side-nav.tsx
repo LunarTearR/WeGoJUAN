@@ -1,15 +1,15 @@
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { Face, type Mood } from '@/components/ui/face'
 import { Icon } from '@/components/ui/icon'
 import { Initials } from '@/components/ui/initials'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { CREATE_HREF, CREATE_LABEL, NAV_ITEMS, type NavKey } from './nav-items'
 import { Wordmark } from './wordmark'
 
 export type RecentTrip = {
   key: string
   title: string
-  mood: Mood // party = ยืนยันแล้ว · unknown = กำลังหาวัน
+  status: 'finding' | 'confirmed' // กำลังหาวัน / ยืนยันแล้ว
   href: string
   active?: boolean
 }
@@ -21,14 +21,14 @@ type SideNavProps = {
   onUserClick?: () => void // กดชื่อผู้ใช้ด้านล่าง เช่นเปิดแผ่นบัญชี
 }
 
-// medium = rail แคบ (หน้ายิ้ม ปุ่มกลมสร้างทริป แท็บชื่อสั้น รูปย่อชื่อ)
+// medium = rail แคบ (ไอคอนตั๋ว ปุ่มกลมสร้างทริป แท็บชื่อสั้น รูปย่อชื่อ)
 // expanded = แถบข้าง (ชื่อแอป ปุ่มสร้างทริปเต็มแถว แท็บชื่อเต็ม ทริปล่าสุด ชื่อผู้ใช้) — CSS สลับให้จากความกว้างของ AppShell
 export function SideNav({ active, trips, user, onUserClick }: SideNavProps) {
   return (
     <nav className="wg-sidenav" aria-label="เมนูหลัก">
       <div className="wg-sidenav__brand">
         <span className="wg-sidenav__mark">
-          <Face mood="party" size={40} />
+          <StatusIcon kind="confirmed" size={40} title="WeGoJUAN" />
         </span>
         <span className="wg-sidenav__word">
           <Wordmark href="/trips" />
@@ -64,7 +64,7 @@ export function SideNav({ active, trips, user, onUserClick }: SideNavProps) {
             {trips.map((trip) => (
               <li key={trip.key}>
                 <Link to={trip.href} className="wg-sidenav__trip small" aria-current={trip.active ? 'page' : undefined}>
-                  <Face mood={trip.mood} size={24} />
+                  <StatusIcon kind={trip.status} size={24} />
                   <span>{trip.title}</span>
                 </Link>
               </li>

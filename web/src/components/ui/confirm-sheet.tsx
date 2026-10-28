@@ -15,7 +15,7 @@ type ConfirmSheetProps = {
   onCancel: () => void
 }
 
-// ใช้แทน window.confirm: แผ่นล่างบนมือถือ กล่องกลางจอตั้งแต่แท็บเล็ต — ไม่มีหน้า ไม่มีมุก
+// ใช้แทน window.confirm: แผ่นล่างบนมือถือ กล่องกลางจอตั้งแต่แท็บเล็ต — ไม่มีไอคอนสถานะ ไม่มีมุก
 export function ConfirmSheet({ open, title, children, confirmLabel, danger, pending, error, onConfirm, onCancel }: ConfirmSheetProps) {
   return (
     <Sheet

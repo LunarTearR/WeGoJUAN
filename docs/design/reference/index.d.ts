@@ -3,7 +3,9 @@ import type * as React from 'react';
 /** A Mark's value on one day. `null` = Unknown (no Mark). */
 export type Status = 'free' | 'busy';
 export type IconName = 'trip' | 'calendar' | 'plus' | 'users' | 'copy' | 'share' | 'refresh' | 'flag' | 'sparkle' | 'lock' | 'edit' | 'trash' | 'exit' | 'check' | 'close' | 'more' | 'chevron-left' | 'chevron-right';
-export type Mood = 'free' | 'busy' | 'unknown' | 'party' | 'sleepy';
+/** StatusIcon kinds. Trip status: finding (CalendarClock, sand) · confirmed (Ticket, orange) · calendar (Calendar, sand: empty states).
+ *  Member availability: free (Check, free-soft) · busy (X, mist) · unknown (MoreHorizontal, dashed white). Icons from lucide-react. */
+export type StatusKind = 'finding' | 'confirmed' | 'calendar' | 'free' | 'busy' | 'unknown';
 /** compact < 600 · medium 600–1023 · expanded ≥ 1024 · split = two screens (Surface Duo), measured on the AppShell's width */
 export type Layout = 'compact' | 'medium' | 'expanded' | 'split';
 
@@ -37,16 +39,17 @@ export declare function IconButton(props: IconButtonProps): React.ReactElement;
 export interface IconProps { name: IconName; size?: number; title?: string; className?: string }
 export declare function Icon(props: IconProps): React.ReactElement;
 
-export interface FaceProps {
-  mood?: Mood;
+export interface StatusIconProps {
+  kind: StatusKind;
+  /** Circle diameter in px (default 32); the icon and its stroke scale with it */
   size?: number;
-  /** Pass a label when the face carries meaning alone; omit to hide it from screen readers. Empty string = default Thai label. */
+  /** Pass a label when the icon stands alone ("Nat ว่าง"); omit to hide it from screen readers. Empty string = default Thai label. */
   title?: string;
-  /** One gentle hop on mount (Confirmed moments) */
-  hop?: boolean;
+  /** One stamp-in animation (the moment dates are confirmed) */
+  stamp?: boolean;
   className?: string;
 }
-export declare function Face(props: FaceProps): React.ReactElement;
+export declare function StatusIcon(props: StatusIconProps): React.ReactElement;
 
 export interface TextFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -75,9 +78,11 @@ export interface StatusPickerProps {
 export declare function StatusPicker(props: StatusPickerProps): React.ReactElement;
 
 export interface PillProps {
-  tone?: 'solid' | 'orange' | 'neutral' | 'free' | 'busy' | 'honey';
+  /** Defaults to 'outline' when status is set, else 'orange' */
+  tone?: 'solid' | 'orange' | 'neutral' | 'outline' | 'free' | 'busy' | 'honey';
   icon?: IconName;
-  face?: Mood;
+  /** An 18px StatusIcon at the start, e.g. a friend's availability */
+  status?: StatusKind;
   children?: React.ReactNode;
   className?: string;
 }
@@ -219,8 +224,8 @@ export declare function InviteLinkBox(props: InviteLinkBoxProps): React.ReactEle
 
 export interface BannerProps {
   tone?: 'info' | 'honey' | 'success' | 'danger';
-  /** Override the tone's default face; null hides it */
-  mood?: Mood | null;
+  /** Override the tone's default icon (info → confirmed, honey → finding, success → free, danger → busy); null hides it */
+  icon?: StatusKind | null;
   title?: React.ReactNode;
   children?: React.ReactNode;
   actions?: React.ReactNode;
@@ -229,7 +234,7 @@ export interface BannerProps {
 }
 export declare function Banner(props: BannerProps): React.ReactElement;
 
-export interface EmptyStateProps { title: string; children?: React.ReactNode; action?: React.ReactNode; mood?: Mood; size?: number; className?: string }
+export interface EmptyStateProps { title: string; children?: React.ReactNode; action?: React.ReactNode; /** default 'calendar' */ icon?: StatusKind; size?: number; className?: string }
 export declare function EmptyState(props: EmptyStateProps): React.ReactElement;
 
 export declare function Wordmark(props: { href?: string }): React.ReactElement;
@@ -265,7 +270,8 @@ export interface SheetProps {
   onClose?: () => void;
   children?: React.ReactNode;
   footer?: React.ReactNode;
-  face?: Mood;
+  /** A StatusIcon in the header (not on destructive confirmations) */
+  icon?: StatusKind;
   /** center (default): confirmations — bottom sheet on phones, centred dialog from tablet up.
    *  side: a calendar day — bottom sheet on phones, floating panel on tablets, non-modal drawer on PC, the right screen on a Duo. */
   placement?: 'center' | 'side';
@@ -275,7 +281,7 @@ export interface SheetProps {
 }
 export declare function Sheet(props: SheetProps): React.ReactElement | null;
 
-export interface RecentTrip { key?: string; title: string; mood?: Mood; href?: string; onClick?: () => void; active?: boolean }
+export interface RecentTrip { key?: string; title: string; status?: 'finding' | 'confirmed'; href?: string; onClick?: () => void; active?: boolean }
 
 export interface AppShellProps {
   children?: React.ReactNode;
@@ -336,7 +342,7 @@ export declare const STATUS_LABEL: Record<'free' | 'busy' | 'unknown', string>;
 declare global {
   interface Window {
     WeGoJUAN: {
-      Button: typeof Button; IconButton: typeof IconButton; Icon: typeof Icon; Face: typeof Face;
+      Button: typeof Button; IconButton: typeof IconButton; Icon: typeof Icon; StatusIcon: typeof StatusIcon;
       TextField: typeof TextField; Checkbox: typeof Checkbox; StatusPicker: typeof StatusPicker;
       Pill: typeof Pill; Initials: typeof Initials; AvatarStack: typeof AvatarStack; MemberChip: typeof MemberChip;
       MonthNav: typeof MonthNav; MonthGrid: typeof MonthGrid; DayCell: typeof DayCell; CalendarLegend: typeof CalendarLegend;

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { FormFooter } from '@/components/layout/form-footer'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import { Face } from '@/components/ui/face'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { TextField } from '@/components/ui/text-field'
 import { todayISO } from '@/lib/date'
 import { useCreateTrip } from '../api/create-trip'
@@ -30,7 +30,7 @@ export function CreateTripForm() {
   return (
     <form onSubmit={handleSubmit} className="wg-stack max-w-(--content-max)">
       <div className="flex items-start gap-3">
-        <Face mood="free" size={44} className="shrink-0" />
+        <StatusIcon kind="calendar" size={44} />
         <p className="small wg-muted">ตั้งชื่อ เลือกช่วงวันที่เปิดให้เลือก แล้วส่งลิงก์เข้ากลุ่ม ที่เหลือเราช่วยหาวันให้</p>
       </div>
       <TextField

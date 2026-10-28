@@ -25,7 +25,7 @@ export function AppLayout() {
   const recent: RecentTrip[] | undefined = trips?.slice(0, 3).map((trip) => ({
     key: trip.id,
     title: trip.title,
-    mood: trip.confirmed_start ? 'party' : 'unknown',
+    status: trip.confirmed_start ? 'confirmed' : 'finding',
     href: `/trips/${trip.id}`,
     active: trip.id === tripId,
   }))

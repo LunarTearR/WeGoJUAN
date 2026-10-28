@@ -6,7 +6,7 @@ import { HomeAppBar } from '@/app/home-app-bar'
 export function NotFoundRoute() {
   return (
     <PageLayout header={<HomeAppBar />}>
-      <EmptyState mood="unknown" title="หลงทางแล้ว" action={<Button href="/trips">กลับไปที่ทริปของฉัน</Button>}>
+      <EmptyState icon="busy" title="หลงทางแล้ว" action={<Button href="/trips">กลับไปที่ทริปของฉัน</Button>}>
         หน้านี้ไม่มีอยู่จริง
       </EmptyState>
     </PageLayout>

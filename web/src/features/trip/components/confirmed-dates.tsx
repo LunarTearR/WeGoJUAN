@@ -1,6 +1,6 @@
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import { Face } from '@/components/ui/face'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { eachDay, formatWeekdayRange } from '@/lib/date'
 import { useClearConfirmed } from '../api/confirm-dates'
 import { useTripMarks } from '../api/get-trip-marks'
@@ -21,7 +21,7 @@ export function ConfirmedDates({ trip, members, isOrganizer }: ConfirmedDatesPro
   if (!trip.confirmed_start || !trip.confirmed_end) {
     return (
       <div className="wg-finding">
-        <Face mood="unknown" size={40} />
+        <StatusIcon kind="finding" size={40} />
         <div className="wg-finding__body">
           <p className="body-strong">กำลังหาวัน</p>
           <p className="wg-finding__hint small">ช่วยกันระบุวันว่าง แล้วผู้จัดจะเลือกช่วงที่ลงตัวที่สุด</p>
@@ -36,7 +36,7 @@ export function ConfirmedDates({ trip, members, isOrganizer }: ConfirmedDatesPro
 
   return (
     <section className="wg-confirmed" aria-label="วันที่ยืนยัน">
-      <Face mood="party" size={56} hop />
+      <StatusIcon kind="confirmed" size={56} stamp />
       <div className="wg-confirmed__body">
         <p className="wg-confirmed__eyebrow small font-semibold">ยืนยันแล้ว!</p>
         <p className="wg-confirmed__dates title">{formatWeekdayRange(trip.confirmed_start, trip.confirmed_end)}</p>

@@ -43,7 +43,7 @@ export function TripList() {
         </div>
         <Banner
           tone="info"
-          mood="sleepy"
+          icon="calendar"
           title="เริ่มจากปฏิทินก่อนก็ได้"
           actions={
             <Button variant="secondary" size="sm" icon="calendar" href="/calendar">
