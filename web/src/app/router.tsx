@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router'
 import { RequireUser } from '@/features/auth/components/require-user'
-import { AppLayout } from './routes/app-layout'
+import { AppLayout, type ShellHandle } from './routes/app-layout'
 import { CalendarRoute } from './routes/calendar'
 import { JoinRoute } from './routes/join'
 import { LoginRoute } from './routes/login'
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
         ],
       },
       // Guest เปิดหน้าทริปได้โดยไม่ login — server ตอบ 404 ถ้าไม่ได้เป็นสมาชิก
-      { path: 'trips/:tripId', element: <TripDetailRoute /> },
+      { path: 'trips/:tripId', element: <TripDetailRoute />, handle: { bottomNav: false } satisfies ShellHandle },
       { path: 'login', element: <LoginRoute /> },
       { path: 'register', element: <RegisterRoute /> },
       { path: 'join/:code', element: <JoinRoute /> },
