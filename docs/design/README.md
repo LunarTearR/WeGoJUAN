@@ -126,7 +126,8 @@ Use one face per card or banner, at 28–44px in lists, 56–88px in heroes and 
 
 - Line icons on a 24px grid, 2px stroke, round caps and joins, `currentColor`. Use `Icon` (names: trip, calendar, plus, users, copy, share, refresh, flag, sparkle, lock, edit, trash, exit, check, close, more, chevron-left, chevron-right).
 - `flag` marks Confirmed, `sparkle` marks the best window, `lock` marks private things (Reason).
-- The repo has no logo yet: `web/public/favicon.svg` and `icons.svg` are still Vite's starter files. Set the name as the `Wordmark` ("WeGo" in `ink`, "JUAN" in `orange-ink`, Mitr 600). The `face-party.svg` asset works as an interim favicon.
+- The app icon is the **brand calendar** (`web/public/favicon.svg`): an `orange` calendar outlined and ringed in `on-orange`, whose `cream` page wears the party Face's smile and blush. It is drawn on a 32px grid so it stays readable at 16px in a browser tab. `favicon-32.png` (transparent) and `apple-touch-icon.png` (180px on `cream`, for "Add to Home Screen") are renders of it: re-render both when the SVG changes. Inside the app, the line `calendar` icon still means ปฏิทินของฉัน.
+- There is still no full logo: set the name as the `Wordmark` ("WeGo" in `ink`, "JUAN" in `orange-ink`, Mitr 600).
 
 ## Accessibility
 
