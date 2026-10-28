@@ -29,10 +29,16 @@ export function monthOf(day: ISODate): { year: number; month: number } {
   return { year: y, month: m }
 }
 
-// "อา. 6 ธ.ค." — คำนวณบน UTC เพื่อไม่ให้ timezone ทำวันเลื่อน
-export function formatThaiDay(day: ISODate): string {
+// "อา. 6 ธ.ค." (withYear: "อา. 6 ธ.ค. 2569") — คำนวณบน UTC เพื่อไม่ให้ timezone ทำวันเลื่อน
+export function formatThaiDay(day: ISODate, withYear = false): string {
   const [y, m, d] = day.split('-').map(Number)
-  return new Intl.DateTimeFormat('th-TH', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)))
+  return new Intl.DateTimeFormat('th-TH', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    ...(withYear ? { year: 'numeric' } : {}),
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(y, m - 1, d)))
 }
 
 // ช่วงวันในเดือนเดียวกัน: "15–19 ธ.ค." หรือ "21 ธ.ค." ถ้าวันเดียว
